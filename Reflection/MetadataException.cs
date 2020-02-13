@@ -43,5 +43,10 @@ namespace DBApi.Reflection
         {
             return new MetadataException($"Entity `{entityName}` does not contain a custom column bound to custom field with id = `{customFieldId}`");
         }
+
+        internal static Exception MissingIdentifierAttribute(string entityName)
+        {
+            return new MetadataException($"Entity `{entityName}` does not contain a column with IdentifierAttribute.");
+        }
     }
 }
