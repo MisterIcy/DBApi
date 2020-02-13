@@ -235,7 +235,7 @@ namespace DBApi.Reflection
         /// </summary>
         /// <param name="entityType">Ο τύπος της κλάσης που έχει μαρκαριστεί ως οντότητα</param>
         /// <returns>True εάν η κλάση είναι όντότητα, αλλιώς false</returns>
-        public static bool IsEntity(Type entityType) => (entityType.GetCustomAttribute<EntityAttribute>() != null;
+        public static bool IsEntity(Type entityType) => (entityType.GetCustomAttribute<EntityAttribute>() != null);
         /// <summary>
         /// Επιστρέφει το όνομα του πίνακα που είναι συσχετισμένος με την όντότητα
         /// </summary>
