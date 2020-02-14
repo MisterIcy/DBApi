@@ -43,6 +43,14 @@ namespace DBApi.Reflection
         /// </summary>
         public string GuidColumn { get; private set; }
         /// <summary>
+        /// Cache Duration
+        /// </summary>
+        public long CacheDuration { get; private set; } = 3600;
+        /// <summary>
+        /// NO cache
+        /// </summary>
+        public bool NoCache { get; private set; } = false;
+        /// <summary>
         /// Μεταδεδομένα πεδίων / στηλών της οντότητας
         /// </summary>
         public Dictionary<string, ColumnMetadata> Columns { get; private set; }
@@ -90,6 +98,13 @@ namespace DBApi.Reflection
                 this.GuidColumn = this.Columns.Select(c => c.Value)
                     .Where(c => c.IsRowGuid == true)
                     .FirstOrDefault().ColumnName ?? string.Empty;
+            }
+
+            CacheControlAttribute cacheAttr = this.EntityType.GetCustomAttribute<CacheControlAttribute>();
+            if (cacheAttr != null)
+            {
+                this.CacheDuration = cacheAttr.Duration;
+                this.NoCache = cacheAttr.NoCache;
             }
         }
         /// <summary>

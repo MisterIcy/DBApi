@@ -8,15 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="README.md" />
+    <Folder Include="QueryBuilder\" />
+    <Folder Include="Reflection\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="README.md" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Attributes\" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.0" />
+    <PackageReference Include="System.Runtime.Caching" Version="4.7.0" />
   </ItemGroup>
 
 </Project>
