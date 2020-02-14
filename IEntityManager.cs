@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-
+using System.Data;
 namespace DBApi
 {
     /// <summary>
@@ -23,6 +23,10 @@ namespace DBApi
         List<object> FindAll(Type entityType);
         void Delete<T>(T entityObject) where T : class;
         void Delete(Type entityType, object entityObject);
+
+        DataTable GetResult(string query, Dictionary<string, object> parameters);
+        DataRow GetSingleResult(string query, Dictionary<string, object> parameters);
+        object GetSingleScalarResult(string query, Dictionary<string, object> parameters);
 
     }
 }

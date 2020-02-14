@@ -632,5 +632,53 @@ namespace DBApi
         {
             throw new NotImplementedException();
         }
+
+        public DataTable GetResult(string query, Dictionary<string, object> parameters)
+        {
+            DataTable dataTable = null;
+            using (SqlConnection Connection = CreateSqlConnection())
+            {
+                Connection.Open();
+                using (Statement stmt = new Statement(query, Connection))
+                {
+                    dataTable = stmt.BindParameters(parameters)
+                        .Fetch();
+                }
+                Connection.Close();
+            }
+            return dataTable;
+        }
+
+        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters)
+        {
+            DataRow dataRow = null;
+            using (SqlConnection Connection = CreateSqlConnection()) 
+            {
+                Connection.Open();
+                using (Statement stmt = new Statement(query, Connection))
+                {
+                    dataRow = stmt.BindParameters(parameters)
+                        .FetchRow();
+                }
+                Connection.Close();
+            }
+            return dataRow;
+        }
+
+        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters)
+        {
+            object value = null;
+            using (SqlConnection Connection = CreateSqlConnection())
+            {
+                Connection.Open();
+                using (Statement stmt = new Statement(query, Connection))
+                {
+                    value = stmt.BindParameters(parameters)
+                        .FetchScalar();
+                }
+                Connection.Close();
+            }
+            return value;
+        }
     }
 }
