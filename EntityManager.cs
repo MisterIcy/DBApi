@@ -494,9 +494,53 @@ namespace DBApi
             return FindBy(entityType, parameters).First();
         }
 
-        public List<T> FindBy<T>(Dictionary<string, object> parameters)
+        public List<T> FindBy<T>(Dictionary<string, object> parameters) where T: class
         {
-            return FindBy(typeof(T), parameters) as List<T>;
+            ClassMetadata metadata = MetadataCache.Get<T>();
+
+            var Query = CreateQueryBuilder()
+                .Select(metadata.IdentifierColumn)
+                .From(metadata.TableName);
+
+            int currentParam = 0;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var parameter in parameters)
+                {
+                    if (currentParam == 0)
+                        Query = Query.Where(new Eq(parameter.Key, parameter.Value));
+                    else
+                        Query = Query.AndWhere(new Eq(parameter.Key, parameter.Value));
+                    currentParam++;
+                }
+            }
+            DataTable dt = new DataTable();
+            using (SqlConnection Connection = CreateSqlConnection())
+            {
+                try
+                {
+                    Connection.Open();
+                    using (Statement stmt = new Statement(Query.GetQuery(), Connection))
+                    {
+                        dt = stmt.BindParameters(parameters)
+                            .Fetch();
+                    }
+                    Connection.Close();
+                }
+                catch (SqlException ex)
+                {
+                    //TODO: Handle Exception
+                }
+            }
+            List<T> objects = new List<T>();
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt.Rows)
+                {
+                    objects.Add(FindById<T>(row[0]));
+                }
+            }
+            return objects;
         }
 
         public List<object> FindBy(Type entityType, Dictionary<string, object> parameters)
