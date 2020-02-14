@@ -43,7 +43,7 @@ namespace DBApi
         {
             return MetadataCache.Get(entityType);
         }
-        private int GetLastInsertId(SqlConnection connection)
+        private int GetLastInsertId(SqlConnection connection, SqlTransaction transaction = null)
         {
             if (connection == null || connection.State != System.Data.ConnectionState.Open)
             {
@@ -53,6 +53,8 @@ namespace DBApi
             {
                 using (Statement stmt = new Statement("SELECT CONVERT(int, @@IDENTITY)", connection))
                 {
+                    if (transaction != null)
+                        stmt.SetTransaction(transaction);
                     return (int)stmt.FetchScalar();
                 }
             }
@@ -154,7 +156,7 @@ namespace DBApi
                     }
                     if (!metadata.HasGuidColumn())
                     {
-                        lastId = GetLastInsertId(Connection);
+                        lastId = GetLastInsertId(Connection, sqlTransaction);
                     } else
                     {
                         var gQuery = CreateQueryBuilder()
