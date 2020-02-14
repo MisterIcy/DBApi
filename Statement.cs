@@ -121,6 +121,7 @@ namespace DBApi
         {
             if (IsDirty())
                 throw ORMStatementException.DirtyStatement(this.Sql);
+
             this.dirty = true;
             return this.command.ExecuteScalar();
         }
