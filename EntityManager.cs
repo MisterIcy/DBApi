@@ -508,9 +508,9 @@ namespace DBApi
                 foreach (var parameter in parameters)
                 {
                     if (currentParam == 0)
-                        Query = Query.Where(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"));
                     else
-                        Query = Query.AndWhere(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
                     currentParam++;
                 }
             }
@@ -557,9 +557,9 @@ namespace DBApi
                 foreach (var parameter in parameters)
                 {
                     if (currentParam == 0)
-                        Query = Query.Where(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"));
                     else
-                        Query = Query.AndWhere(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
                     currentParam++;
                 }
             }
