@@ -43,7 +43,7 @@ namespace DBApi
         {
             return MetadataCache.Get(entityType);
         }
-        private int GetLastInsertId(SqlConnection connection)
+        private int GetLastInsertId(SqlConnection connection, SqlTransaction transaction = null)
         {
             if (connection == null || connection.State != System.Data.ConnectionState.Open)
             {
@@ -53,6 +53,9 @@ namespace DBApi
             {
                 using (Statement stmt = new Statement("SELECT CONVERT(int, @@IDENTITY)", connection))
                 {
+                    if (transaction != null)
+                        stmt.SetTransaction(transaction);
+
                     return (int)stmt.FetchScalar();
                 }
             }
@@ -154,7 +157,7 @@ namespace DBApi
                     }
                     if (!metadata.HasGuidColumn())
                     {
-                        lastId = GetLastInsertId(Connection);
+                        lastId = GetLastInsertId(Connection, sqlTransaction);
                     } else
                     {
                         var gQuery = CreateQueryBuilder()
@@ -486,17 +489,61 @@ namespace DBApi
 
         public T FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
-            return FindOneBy(typeof(T), parameters) as T;
+            return FindBy<T>(parameters).FirstOrDefault();
         }
 
         public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
-            return FindBy(entityType, parameters).First();
+            return FindBy(entityType, parameters).FirstOrDefault();
         }
 
-        public List<T> FindBy<T>(Dictionary<string, object> parameters)
+        public List<T> FindBy<T>(Dictionary<string, object> parameters) where T: class
         {
-            return FindBy(typeof(T), parameters) as List<T>;
+            ClassMetadata metadata = MetadataCache.Get<T>();
+
+            var Query = CreateQueryBuilder()
+                .Select(metadata.IdentifierColumn)
+                .From(metadata.TableName);
+
+            int currentParam = 0;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var parameter in parameters)
+                {
+                    if (currentParam == 0)
+                        Query = Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"));
+                    else
+                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
+                    currentParam++;
+                }
+            }
+            DataTable dt = new DataTable();
+            using (SqlConnection Connection = CreateSqlConnection())
+            {
+                try
+                {
+                    Connection.Open();
+                    using (Statement stmt = new Statement(Query.GetQuery(), Connection))
+                    {
+                        dt = stmt.BindParameters(parameters)
+                            .Fetch();
+                    }
+                    Connection.Close();
+                }
+                catch (SqlException ex)
+                {
+                    //TODO: Handle Exception
+                }
+            }
+            List<T> objects = new List<T>();
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt.Rows)
+                {
+                    objects.Add(FindById<T>(row[0]));
+                }
+            }
+            return objects;
         }
 
         public List<object> FindBy(Type entityType, Dictionary<string, object> parameters)
@@ -513,9 +560,9 @@ namespace DBApi
                 foreach (var parameter in parameters)
                 {
                     if (currentParam == 0)
-                        Query = Query.Where(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"));
                     else
-                        Query = Query.AndWhere(new Eq(parameter.Key, parameter.Value));
+                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
                     currentParam++;
                 }
             }
