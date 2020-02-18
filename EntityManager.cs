@@ -489,12 +489,12 @@ namespace DBApi
 
         public T FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
-            return FindOneBy(typeof(T), parameters) as T;
+            return FindBy<T>(parameters).FirstOrDefault();
         }
 
         public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
-            return FindBy(entityType, parameters).First();
+            return FindBy(entityType, parameters).FirstOrDefault();
         }
 
         public List<T> FindBy<T>(Dictionary<string, object> parameters) where T: class
@@ -513,7 +513,7 @@ namespace DBApi
                     if (currentParam == 0)
                         Query = Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"));
                     else
-                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}));
+                        Query = Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
                     currentParam++;
                 }
             }
