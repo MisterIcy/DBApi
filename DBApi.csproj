@@ -5,12 +5,25 @@
     <Version>0.7.0</Version>
     <Authors>Alexandros Koutroulis</Authors>
     <Product>Vortex Database API</Product>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageProjectUrl>https://github.com/mistericy/dbapi</PackageProjectUrl>
-    <Copyright>Alexandros Koutroulis</Copyright>
-    <RepositoryUrl>https://github.com/mistericy/dbapi.git</RepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/MisterIcy/DBApi</RepositoryUrl>
+    <PackageDescription>Database API</PackageDescription>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Description>Database API</Description>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/MisterIcy/DBApi</PackageProjectUrl>
+    <PackageTags>orm, database, api</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <FileAlignment>4096</FileAlignment>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
