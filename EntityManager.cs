@@ -355,7 +355,17 @@ namespace DBApi
                     continue;
 
                 if (column.IsRelationship && column.RelationshipType == RelationshipType.ManyToOne)
-                    column.FieldInfo.SetValue(entityBase, FindById(column.TargetEntity, value));
+                {
+                    //Note to future self:
+                    //Ενώ, κανονικά, δένουμε το ManyToOne με το primaryKey, εδώ έχει πάρει και έχει γαμηθεί.
+                    //Οπότε δεν μπορούμε να πάμε να ψάξουμε με FindById, αλλά με FindOneBy και το 
+                    //field στο οποίο κάνουμε reference
+                    var targetObject = FindOneBy(column.TargetEntity, new Dictionary<string, object>()
+                    {
+                        {column.RelationshipReferenceColumn, value }
+                    });
+                    column.FieldInfo.SetValue(entityBase, targetObject);
+                }
                 else
                     column.FieldInfo.SetValue(entityBase, value);
             }
