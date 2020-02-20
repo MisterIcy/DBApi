@@ -14,6 +14,10 @@ namespace DBApi
 {
     public class EntityManager : IEntityManager
     {
+        /// <summary>
+        /// Number of times the EntityManager can retry the transaction before throwing an exception
+        /// </summary>
+        public int MaxRetries { get; set; } = 3;
         public event EventHandler<OperationEventArgs> OperationComplete;
         protected virtual void OnOperationComplete(OperationEventArgs args)
         {
@@ -23,11 +27,7 @@ namespace DBApi
         {
             OnOperationComplete(new OperationEventArgs(OperationName, IsSuccess, ElapsedMillis));
         }
-        /// <summary>
-        /// Ο μέγιστος αριθμός προσπαθειών επανασύνδεσης σε περίπτωση προβλήματος επικοινωίας με τον SQL Server
-        /// </summary>
-        public static int MaxRetries { get; set; } = 5;
-
+        
         private readonly string connectionString = string.Empty;
 
         public EntityManager(string ConnectionString)
@@ -64,7 +64,7 @@ namespace DBApi
                 return -1;
             }
         }
-        private int FastCount(string tableName, Dictionary<string, object> parameters)
+        private int FastCount(string tableName, Dictionary<string, object> parameters, int CurrentRetries = 0)
         {
             var queryBuilder = CreateQueryBuilder()
                 .Select("COUNT(*)")
@@ -95,8 +95,12 @@ namespace DBApi
                     }
                 } catch (SqlException ex)
                 {
-                    //TODO: Handle errors
-                    throw ex;
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FastCount(tableName, parameters, +CurrentRetries);
+                    throw (ex);
                 }
             }
         }
@@ -108,7 +112,6 @@ namespace DBApi
             });
         }
 
-
         public T Persist<T>(T entityObject) where T : class
         {
             return Persist(typeof(T), entityObject) as T;
@@ -117,7 +120,7 @@ namespace DBApi
         {
             return $"{name}:{obj.ToString()}";
         }
-        public object Persist(Type entityType, object entityObject)
+        public object Persist(Type entityType, object entityObject, int CurrentRetries = 0)
         {
 #if DEBUG
             Stopwatch sw = new Stopwatch();
@@ -194,13 +197,21 @@ namespace DBApi
                         }
                     }
                     sqlTransaction.Commit();
+                    Connection.Close();
                 } catch (SqlException ex)
                 {
                     if (sqlTransaction != null && Connection.State == System.Data.ConnectionState.Open)
                     {
                         sqlTransaction.Rollback();
                     }
-                    Connection.Close();
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                    {
+                        return Persist(entityType, entityObject, ++CurrentRetries);
+                    }
+                    
                     throw new Exception(ex.Message, ex);
                     //throw new ORMStatementException(Query, ex.Message);
                 }
@@ -218,7 +229,7 @@ namespace DBApi
             return Update(typeof(T), entityObject) as T;
         }
 
-        public object Update(Type entityType, object entityObject)
+        public object Update(Type entityType, object entityObject, int CurrentRetries = 0)
         {
             if (entityObject == null) throw new ArgumentNullException(nameof(entityObject));
 
@@ -270,7 +281,14 @@ namespace DBApi
                 {
                     if (sqlTransaction != null && Connection.State == System.Data.ConnectionState.Open)
                         sqlTransaction.Rollback();
-                    
+
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                    {
+                        return Update(entityType, entityObject, ++CurrentRetries);
+                    }
                     throw new ORMStatementException(Query, ex.Message);
                 }
                 Connection.Close();
@@ -289,7 +307,7 @@ namespace DBApi
             return FindById(typeof(T), identifier) as T;
         }
 
-        public object FindById(Type entityType, object identifier)
+        public object FindById(Type entityType, object identifier, int CurrentRetries = 0)
         {
             //Kill all Null Identifiers
             if (identifier == null)
@@ -302,7 +320,7 @@ namespace DBApi
             if (CacheManager.Contains(entityType, identifier))
             {
                 sw.Stop();
-                OnOperationComplete(GetOperationName($"/Fetched from Cache: {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
+                //OnOperationComplete(GetOperationName($"/Fetched from Cache: {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
                 return CacheManager.Get(entityType, identifier);
             }
 
@@ -319,16 +337,27 @@ namespace DBApi
             sw.Restart();
             using (SqlConnection Connection = CreateSqlConnection())
             {
-                Connection.Open();
-                using (Statement stmt = new Statement(Query, Connection))
+                try
                 {
-                    stmt.BindParameter("@identifier", identifier);
-                    entity = HydrateObject(stmt.FetchRow(), metadata);
+                    Connection.Open();
+                    using (Statement stmt = new Statement(Query, Connection))
+                    {
+                        stmt.BindParameter("@identifier", identifier);
+                        entity = HydrateObject(stmt.FetchRow(), metadata);
+                    }
+                    Connection.Close();
+                } catch (SqlException ex)
+                {
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FindById(entityType, identifier, ++CurrentRetries);
+                    throw (ex);
                 }
-                Connection.Close();
             }
             sw.Stop();
-            OnOperationComplete(GetOperationName($"/FindById Completed {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
+            //OnOperationComplete(GetOperationName($"/FindById Completed {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
             CacheManager.Add(entityType, entity);
             return entity;
         }
@@ -374,12 +403,12 @@ namespace DBApi
                 HydrateCustomColumns(ref entityBase, metadata);
             }
             sw.Stop();
-            OnOperationComplete(GetOperationName($"\t ObjectHydration: "), true, sw.ElapsedTicks);
+            //OnOperationComplete(GetOperationName($"\t ObjectHydration: "), true, sw.ElapsedTicks);
 
             return entityBase;
         }
 
-        private void HydrateCustomColumns(ref object entityBase, ClassMetadata metadata)
+        private void HydrateCustomColumns(ref object entityBase, ClassMetadata metadata, int CurrentRetries = 0 )
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -406,8 +435,14 @@ namespace DBApi
                     Connection.Close();
                 } catch (SqlException ex)
                 {
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        HydrateCustomColumns(ref entityBase, metadata, ++CurrentRetries);
                     sw.Stop();
-                    OnOperationComplete(GetOperationName($"\t CustomColumHydration Failure: "), false, sw.ElapsedTicks);
+                    throw (ex);
+                    //OnOperationComplete(GetOperationName($"\t CustomColumHydration Failure: "), false, sw.ElapsedTicks);
                 }
             }
 
@@ -432,7 +467,7 @@ namespace DBApi
                 metadata.GetCustomColumnFieldInfo(columnId).SetValue(entityBase, value);
             }
             sw.Stop();
-            OnOperationComplete(GetOperationName($"\tCustomColumnHydration Complete: "), true, sw.ElapsedTicks);
+            //OnOperationComplete(GetOperationName($"\tCustomColumnHydration Complete: "), true, sw.ElapsedTicks);
         }
         private bool ConvertStringToBoolean(string value)
         {
@@ -507,7 +542,7 @@ namespace DBApi
             return FindBy(entityType, parameters).FirstOrDefault();
         }
 
-        public List<T> FindBy<T>(Dictionary<string, object> parameters) where T: class
+        public List<T> FindBy<T>(Dictionary<string, object> parameters, int CurrentRetries = 0) where T: class
         {
             ClassMetadata metadata = MetadataCache.Get<T>();
 
@@ -542,7 +577,12 @@ namespace DBApi
                 }
                 catch (SqlException ex)
                 {
-                    //TODO: Handle Exception
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FindBy<T>(parameters, ++CurrentRetries);
+                    throw (ex);
                 }
             }
             List<T> objects = new List<T>();
@@ -556,7 +596,7 @@ namespace DBApi
             return objects;
         }
 
-        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters)
+        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters, int CurrentRetries = 0)
         {
             ClassMetadata metadata = MetadataCache.Get(entityType);
 
@@ -590,7 +630,12 @@ namespace DBApi
                     Connection.Close();
                 } catch (SqlException ex)
                 {
-                    //TODO: Handle Exception
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FindBy(entityType, parameters, ++CurrentRetries);
+                    throw (ex);
                 }
             }
             List<object> objects = new List<object>();
@@ -604,7 +649,7 @@ namespace DBApi
             return objects;
         }
 
-        public List<T> FindAll<T>() where T : class
+        public List<T> FindAll<T>(int CurrentRetries = 0) where T : class
         {
             ClassMetadata metadata = MetadataCache.Get<T>();
 
@@ -628,7 +673,12 @@ namespace DBApi
                 }
                 catch (SqlException ex)
                 {
-                    //TODO: Handle error
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FindAll<T>(++CurrentRetries);
+                    throw (ex);
                 }
             }
             List<T> objects = new List<T>();
@@ -642,7 +692,7 @@ namespace DBApi
             return objects;
         }
 
-        public List<object> FindAll(Type entityType)
+        public List<object> FindAll(Type entityType, int CurrentRetries = 0)
         {
             ClassMetadata metadata = MetadataCache.Get(entityType);
 
@@ -665,7 +715,12 @@ namespace DBApi
                     Connection.Close();
                 } catch (SqlException ex)
                 {
-                    //TODO: Handle error
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return FindAll(entityType, ++CurrentRetries);
+                    throw (ex);
                 }
             }
             List<object> objects = new List<object>();
@@ -690,52 +745,135 @@ namespace DBApi
             throw new NotImplementedException();
         }
 
-        public DataTable GetResult(string query, Dictionary<string, object> parameters)
+        public DataTable GetResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
         {
             DataTable dataTable = null;
             using (SqlConnection Connection = CreateSqlConnection())
             {
-                Connection.Open();
-                using (Statement stmt = new Statement(query, Connection))
+                try
                 {
-                    dataTable = stmt.BindParameters(parameters)
-                        .Fetch();
+                    Connection.Open();
+                    using (Statement stmt = new Statement(query, Connection))
+                    {
+                        dataTable = stmt.BindParameters(parameters)
+                            .Fetch();
+                    }
+                    Connection.Close();
+                } catch(SqlException ex)
+                {
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return GetResult(query, parameters, ++CurrentRetries);
+                    throw (ex);
                 }
-                Connection.Close();
             }
             return dataTable;
         }
 
-        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters)
+        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
         {
             DataRow dataRow = null;
             using (SqlConnection Connection = CreateSqlConnection()) 
             {
-                Connection.Open();
-                using (Statement stmt = new Statement(query, Connection))
+                try
                 {
-                    dataRow = stmt.BindParameters(parameters)
-                        .FetchRow();
+                    Connection.Open();
+                    using (Statement stmt = new Statement(query, Connection))
+                    {
+                        dataRow = stmt.BindParameters(parameters)
+                            .FetchRow();
+                    }
+                    Connection.Close();
+                } catch (SqlException ex)
+                {
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return GetSingleResult(query, parameters, ++CurrentRetries);
+                    throw (ex);
                 }
-                Connection.Close();
             }
             return dataRow;
         }
 
-        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters)
+        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
         {
             object value = null;
             using (SqlConnection Connection = CreateSqlConnection())
             {
-                Connection.Open();
-                using (Statement stmt = new Statement(query, Connection))
+                try
                 {
-                    value = stmt.BindParameters(parameters)
-                        .FetchScalar();
+                    Connection.Open();
+                    using (Statement stmt = new Statement(query, Connection))
+                    {
+                        value = stmt.BindParameters(parameters)
+                            .FetchScalar();
+                    }
+                    Connection.Close();
+                } catch (SqlException ex)
+                {
+                    if (Connection.State == ConnectionState.Open)
+                        Connection.Close();
+
+                    if (CurrentRetries < MaxRetries)
+                        return GetSingleScalarResult(query, parameters, ++CurrentRetries);
+                    throw (ex);
                 }
-                Connection.Close();
             }
             return value;
+        }
+
+        public object Persist(Type entityType, object entityObject)
+        {
+            return Persist(entityType, entityObject, 0);
+        }
+
+        public object Update(Type entityType, object entityObject)
+        {
+            return Update(entityType, entityObject, 0);
+        }
+
+        public object FindById(Type entityType, object identifier)
+        {
+            return FindById(entityType, identifier, 0);
+        }
+
+        public List<T> FindBy<T>(Dictionary<string, object> parameters) where T : class
+        {
+            return FindBy<T>(parameters, 0);
+        }
+
+        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters)
+        {
+            return FindBy(entityType, parameters, 0);
+        }
+
+        public List<T> FindAll<T>() where T : class
+        {
+            return FindAll<T>(0);
+        }
+
+        public List<object> FindAll(Type entityType)
+        {
+            return FindAll(entityType, 0);
+        }
+
+        public DataTable GetResult(string query, Dictionary<string, object> parameters)
+        {
+            return GetResult(query, parameters, 0);
+        }
+
+        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters)
+        {
+            return GetSingleResult(query, parameters, 0);
+        }
+
+        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters)
+        {
+            return GetSingleScalarResult(query, parameters, 0);
         }
     }
 }
