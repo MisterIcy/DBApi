@@ -1,0 +1,4 @@
+﻿language: csharp
+solution: DBApi.sln
+mono: none
+dotnet: 2.0.0

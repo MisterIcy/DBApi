@@ -9,6 +9,7 @@ using DBApi.Exceptions;
 using System.Data;
 using System.Data.SqlTypes;
 using System.Runtime.CompilerServices;
+using System.Collections;
 
 namespace DBApi
 {
@@ -306,7 +307,6 @@ namespace DBApi
         {
             return FindById(typeof(T), identifier) as T;
         }
-
         public object FindById(Type entityType, object identifier, int CurrentRetries = 0)
         {
             //Kill all Null Identifiers
@@ -354,6 +354,9 @@ namespace DBApi
                     if (CurrentRetries < MaxRetries)
                         return FindById(entityType, identifier, ++CurrentRetries);
                     throw (ex);
+                } catch (Exception ex)
+                {
+                    throw (ex);
                 }
             }
             sw.Stop();
@@ -373,15 +376,28 @@ namespace DBApi
             object entityBase = Activator.CreateInstance(metadata.EntityType);
             var columns = metadata.Columns.Select(c => c.Value)
                 .Where(c => (c.IsCustomColumn == false))
-                .Where(c => (c.RelationshipType != RelationshipType.OneToMany))
                 .ToList();
 
             
             foreach (var column in columns)
             {
-                object value = row[column.ColumnName];
+                object value = null;
+                if (!string.IsNullOrEmpty(column.ColumnName) && row.Table.Columns.Contains(column.ColumnName)) 
+                    value = row[column.ColumnName];
+
                 if (value == null || value == DBNull.Value)
-                    continue;
+                {
+                    if (!column.IsRelationship)
+                    {
+                        continue;
+                    } else
+                    {
+                        if (column.RelationshipType == RelationshipType.ManyToOne)
+                        {
+                            continue;
+                        }
+                    }
+                }
 
                 if (column.IsRelationship && column.RelationshipType == RelationshipType.ManyToOne)
                 {
@@ -394,6 +410,14 @@ namespace DBApi
                         {column.RelationshipReferenceColumn, value }
                     });
                     column.FieldInfo.SetValue(entityBase, targetObject);
+                } else if (column.IsRelationship && column.RelationshipType == RelationshipType.OneToMany)
+                {
+                    List<object> objects = FindBy(column.TargetEntity, new Dictionary<string, object>()
+                    {
+                        { column.RelationshipReferenceColumn, metadata.GetIdentifierField().GetValue(entityBase) }
+                    });
+
+                    column.FieldInfo.SetValue(entityBase, ConvertList(objects, column.TargetEntity));
                 }
                 else
                     column.FieldInfo.SetValue(entityBase, value);
@@ -406,6 +430,17 @@ namespace DBApi
             //OnOperationComplete(GetOperationName($"\t ObjectHydration: "), true, sw.ElapsedTicks);
 
             return entityBase;
+        }
+        private object ConvertList(List<object> source, Type targetType)
+        {
+
+            var listType = typeof(List<>).MakeGenericType(targetType);
+            var typedList = (IList)Activator.CreateInstance(listType);
+            foreach (var item in source)
+            {
+                typedList.Add(item);
+            }
+            return typedList;
         }
 
         private void HydrateCustomColumns(ref object entityBase, ClassMetadata metadata, int CurrentRetries = 0 )
