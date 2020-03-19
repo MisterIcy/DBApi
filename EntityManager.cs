@@ -408,6 +408,13 @@ namespace DBApi
             return entityObject;
         }
 
+        /// <summary>
+        /// Searches for an entity by its Identifier
+        /// </summary>
+        /// <param name="entityType">The <see cref="Type"/> of the Entity</param>
+        /// <param name="identifier">The identifier</param>
+        /// <param name="CurrentRetries"></param>
+        /// <returns>An object containing the entity or null if it's not found</returns>
         public object FindById(Type entityType, object identifier, int CurrentRetries = 0)
         {
             //Kill all Null Identifiers
@@ -415,39 +422,36 @@ namespace DBApi
                 return null;
             if ((int) identifier < 1)
                 return null;
-            var sw = new Stopwatch();
-            sw.Start();
+            
             var metadata = GetClassMetadata(entityType);
             if (CacheManager.Contains(entityType, identifier))
             {
-                sw.Stop();
-                //OnOperationComplete(GetOperationName($"/Fetched from Cache: {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
                 return CacheManager.Get(entityType, identifier);
             }
 
-            sw.Restart();
-            var Query = CreateQueryBuilder()
+            
+            var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
                 .FromInternal(metadata)
                 .Where(new Eq($"t.{metadata.IdentifierColumn}", "@identifier"))
                 .GetQuery();
-            sw.Stop();
-            //OnOperationComplete(GetOperationName($"/Created Query: {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
-
+            
             object entity;
-            sw.Restart();
             using (var Connection = CreateSqlConnection())
             {
                 try
                 {
                     Connection.Open();
-                    using (var stmt = new Statement(Query, Connection))
+                    DataRow row;
+                    //IMPORTANT: HydrateObject does not open another connection to SQL, HydrateCustomColumns does though.
+                    //In order to preserve resources - and connections - do close the Connection BEFORE hydrating the entity
+                    using (var stmt = new Statement(query, Connection))
                     {
                         stmt.BindParameter("@identifier", identifier);
-                        entity = HydrateObject(stmt.FetchRow(), metadata);
+                        row = stmt.FetchRow();
                     }
-
                     Connection.Close();
+                    entity = HydrateObject(row, metadata);
                 }
                 catch (SqlException)
                 {
@@ -459,9 +463,6 @@ namespace DBApi
                     throw;
                 }
             }
-
-            sw.Stop();
-            //OnOperationComplete(GetOperationName($"/FindById Completed {entityType.Name}:{identifier.ToString()}"), true, sw.ElapsedTicks);
             CacheManager.Add(entityType, entity);
             return entity;
         }
