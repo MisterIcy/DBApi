@@ -628,7 +628,7 @@ namespace DBApi
             
             var metadata = MetadataCache.Get<T>();
             long count = FastCount(metadata.TableName, null);
-            OnBeginListing(metadata.EntityType, count);
+            
 
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
@@ -667,13 +667,22 @@ namespace DBApi
                     throw;
                 }
             }
+            // Moving this to a safe spot
+            OnBeginListing(metadata.EntityType, count);
 
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, count);
                 return null;
             }
-            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata) as T).ToList();
+
+            var entityList = new List<T>();
+            foreach (DataRow row in dt.Rows)
+            {
+                entityList.Add(HydrateObject(row, metadata) as T);
+                OnEntityLoaded(metadata.EntityType, 0);
+            }
+            
             OnEndListing(metadata.EntityType, count);
             return entityList;
         }
@@ -684,8 +693,7 @@ namespace DBApi
             
             var metadata = MetadataCache.Get(entityType);
             long count = FastCount(metadata.TableName, null);
-            OnBeginListing(metadata.EntityType, count);
-
+            
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
                 .FromInternal(metadata);
@@ -723,13 +731,20 @@ namespace DBApi
                     throw;
                 }
             }
-
+            // Moving this to a safe spot
+            OnBeginListing(metadata.EntityType, count);
+            
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, count);
                 return null;
             }
-            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
+            var entityList = new List<T>();
+            foreach (DataRow row in dt.Rows)
+            {
+                entityList.Add(HydrateObject(row, metadata) as T);
+                OnEntityLoaded(metadata.EntityType, 0);
+            }
             OnEndListing(metadata.EntityType, count);
             return entityList;
         }
