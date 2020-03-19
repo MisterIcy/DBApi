@@ -18,14 +18,14 @@ namespace DBApi
         object FindOneBy(Type entityType, Dictionary<string, object> parameters);
         List<T> FindBy<T>(Dictionary<string, object> parameters) where T: class;
         List<object> FindBy(Type entityType, Dictionary<string, object> parameters);
-        List<T> FindAll<T>() where T: class;
-        List<object> FindAll(Type entityType);
+        List<T> FindAll<T>(int currentRetries = 0) where T: class;
+        List<object> FindAll(Type entityType, int currentRetries = 0);
         void Delete<T>(T entityObject) where T : class;
         void Delete(Type entityType, object entityObject);
 
-        DataTable GetResult(string query, Dictionary<string, object> parameters);
-        DataRow GetSingleResult(string query, Dictionary<string, object> parameters);
-        object GetSingleScalarResult(string query, Dictionary<string, object> parameters);
+        DataTable GetResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0);
+        DataRow GetSingleResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0);
+        object GetSingleScalarResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0);
 
     }
 }

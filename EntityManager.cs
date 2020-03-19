@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
@@ -16,39 +15,49 @@ using DBApi.Reflection;
 
 namespace DBApi
 {
-    public class EntityManager : IEntityManager
+    public sealed class EntityManager : IEntityManager
     {
+        #region Entity Manager Events
         public event EventHandler<EntityEnumerationEventArgs> BeginListing;
         public event EventHandler<EntityLoadedEventArgs> EntityLoaded;
         public event EventHandler<EntityEnumerationEventArgs> EndListing;
 
-        protected virtual void OnBeginListing(Type entityType, long count)
+        private void OnBeginListing(Type entityType, long count)
         {
             BeginListing?.Invoke(this, new EntityEnumerationEventArgs(count, entityType));
         }
 
-        protected virtual void OnEntityLoaded(Type entityType, object identifier)
+        private void OnEntityLoaded(Type entityType, object identifier)
         {
             EntityLoaded?.Invoke(this, new EntityLoadedEventArgs(entityType, identifier));
         }
 
-        protected virtual void OnEndListing(Type entityType, long count)
+        private void OnEndListing(Type entityType, long count)
         {
             EndListing?.Invoke(this, new EntityEnumerationEventArgs(count, entityType));
         }
+        #endregion
 
-        private readonly string connectionString;
+        private readonly string _connectionString;
 
-        public EntityManager(string ConnectionString)
+        /// <summary>
+        /// Creates a new Entity manager
+        /// </summary>
+        /// <param name="connectionString">A Valid SQL Server Connection String</param>
+        /// <exception cref="ArgumentNullException">Thrown when a null connection string is passed to <see cref="connectionString"/></exception>
+        public EntityManager(string connectionString)
         {
-            if (string.IsNullOrEmpty(ConnectionString))
-                throw new ArgumentNullException(nameof(ConnectionString));
-            connectionString = ConnectionString;
+            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            if (string.IsNullOrEmpty(connectionString))
+                throw new ArgumentNullException(nameof(connectionString));
+            
+            _connectionString = connectionString;
         }
 
         /// <summary>
         ///     Number of times the EntityManager can retry the transaction before throwing an exception
         /// </summary>
+        // ReSharper disable once MemberCanBePrivate.Global
         public int MaxRetries { get; set; } = 3;
 
         public T Persist<T>(T entityObject) where T : class
@@ -110,47 +119,22 @@ namespace DBApi
         {
             return FindBy(entityType, parameters, 0);
         }
-
-        public List<T> FindAll<T>() where T : class
-        {
-            return FindAll<T>(0);
-        }
-
-        public List<object> FindAll(Type entityType)
-        {
-            return FindAll(entityType, 0);
-        }
-
-        public DataTable GetResult(string query, Dictionary<string, object> parameters)
-        {
-            return GetResult(query, parameters, 0);
-        }
-
-        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters)
-        {
-            return GetSingleResult(query, parameters, 0);
-        }
-
-        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters)
-        {
-            return GetSingleScalarResult(query, parameters, 0);
-        }
-
+        
         public event EventHandler<OperationEventArgs> OperationComplete;
 
-        protected virtual void OnOperationComplete(OperationEventArgs args)
+        private void OnOperationComplete(OperationEventArgs args)
         {
             OperationComplete?.Invoke(this, args);
         }
 
-        protected virtual void OnOperationComplete(string OperationName, bool IsSuccess = true, long ElapsedMillis = 0)
+        private void OnOperationComplete(string OperationName, bool IsSuccess = true, long ElapsedMillis = 0)
         {
             OnOperationComplete(new OperationEventArgs(OperationName, IsSuccess, ElapsedMillis));
         }
 
         public SqlConnection CreateSqlConnection()
         {
-            return new SqlConnection(connectionString);
+            return new SqlConnection(_connectionString);
         }
 
         public QueryBuilder.QueryBuilder CreateQueryBuilder()
@@ -748,150 +732,177 @@ namespace DBApi
             return objects;
         }
 
-        public List<T> FindAll<T>(int CurrentRetries = 0) where T : class
+        // ReSharper disable once MemberCanBePrivate.Global
+        public List<T> FindAll<T>(int currentRetries = 0) where T : class
         {
+            if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+            
             var metadata = MetadataCache.Get<T>();
-
-            var count = FastCount(metadata.TableName, null);
+            long count = FastCount(metadata.TableName, null);
             OnBeginListing(metadata.EntityType, count);
 
-            var Query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
-                .From(metadata.TableName)
+            var query = CreateQueryBuilder()
+                .SelectInternal(metadata)
+                .FromInternal(metadata)
                 .GetQuery();
 
             DataTable dt;
-
-            using (var Connection = CreateSqlConnection())
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
-                    using (var stmt = new Statement(Query, Connection))
+                    connection.Open();
+                    using (var stmt = new Statement(query, connection))
                     {
                         dt = stmt.Fetch();
                     }
-
-                    Connection.Close();
-                }
-                catch (SqlException)
+                    connection.Close();
+                }catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                    if (CurrentRetries < MaxRetries)
-                        return FindAll<T>(++CurrentRetries);
+                    if (currentRetries < MaxRetries)
+                        return FindAll<T>(++currentRetries);
                     throw;
                 }
             }
 
-            var objects = new List<T>();
-            if (dt != null && dt.Rows.Count > 0)
+            if (dt == null || dt.Rows.Count == 0)
             {
-                foreach (DataRow row in dt.Rows)
-                {
-                    var entity = FindById<T>(row[0]);
-                    objects.Add(entity);
-                    OnEntityLoaded(metadata.EntityType, metadata.GetIdentifierField().GetValue(entity));
-                }
+                OnEndListing(metadata.EntityType, count);
+                return null;
             }
+            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata) as T).ToList();
             OnEndListing(metadata.EntityType, count);
-            return objects;
+            return entityList;
         }
-
-        public List<object> FindAll(Type entityType, int CurrentRetries = 0)
+        
+        public List<object> FindAll(Type entityType, int currentRetries = 0)
         {
+            if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+            
             var metadata = MetadataCache.Get(entityType);
+            long count = FastCount(metadata.TableName, null);
+            OnBeginListing(metadata.EntityType, count);
 
-            var Query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
-                .From(metadata.TableName)
+            var query = CreateQueryBuilder()
+                .SelectInternal(metadata)
+                .FromInternal(metadata)
                 .GetQuery();
-            DataTable dt;
 
-            using (var Connection = CreateSqlConnection())
+            DataTable dt;
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
-                    using (var stmt = new Statement(Query, Connection))
+                    connection.Open();
+                    using (var stmt = new Statement(query, connection))
                     {
                         dt = stmt.Fetch();
                     }
-
-                    Connection.Close();
-                }
-                catch (SqlException)
+                    connection.Close();
+                }catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                    if (CurrentRetries < MaxRetries)
-                        return FindAll(entityType, ++CurrentRetries);
+                    if (currentRetries < MaxRetries)
+                        return FindAll(entityType, ++currentRetries);
                     throw;
                 }
             }
 
-            var objects = new List<object>();
-            if (dt != null && dt.Rows.Count > 0)
-                foreach (DataRow row in dt.Rows)
-                    objects.Add(FindById(entityType, row[0]));
-            return objects;
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                OnEndListing(metadata.EntityType, count);
+                return null;
+            }
+
+            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
+            OnEndListing(metadata.EntityType, count);
+            return entityList;
         }
 
-        public DataTable GetResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
+        // ReSharper disable once MemberCanBePrivate.Global
+        /// <summary>
+        /// Executes a SQL Query and returns a <see cref="DataTable"/> with the results
+        /// </summary>
+        /// <param name="query">The Query</param>
+        /// <param name="parameters">A <see cref="Dictionary{TKey,TValue}"/> of parameters</param>
+        /// <param name="currentRetries">The number of already executed retries</param>
+        /// <returns>A <see cref="DataTable"/> with the results or null if no results were produced</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the query is empty</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if the programmer is dumb enough to use a negative number of retries</exception>
+        public DataTable GetResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0)
         {
+            if (string.IsNullOrEmpty(query))
+                throw new ArgumentNullException(nameof(query));
+                
+            if (currentRetries <= 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+
             DataTable dataTable;
-            using (var Connection = CreateSqlConnection())
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
-                    using (var stmt = new Statement(query, Connection))
+                    connection.Open();
+                    using (var stmt = new Statement(query, connection))
                     {
                         dataTable = stmt.BindParameters(parameters)
                             .Fetch();
                     }
 
-                    Connection.Close();
+                    connection.Close();
                 }
                 catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                    if (CurrentRetries < MaxRetries)
-                        return GetResult(query, parameters, ++CurrentRetries);
+                    if (currentRetries < MaxRetries)
+                        return GetResult(query, parameters, ++currentRetries);
                     throw;
                 }
             }
-
             return dataTable;
         }
-
-        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
+        /// <summary>
+        /// Executes a SQL Query and returns a <see cref="DataRow"/> with thr result
+        /// </summary>
+        /// <param name="query"></param>
+        /// <param name="parameters"></param>
+        /// <param name="currentRetries"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public DataRow GetSingleResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0)
         {
+            if (string.IsNullOrEmpty(query))
+                throw new ArgumentNullException(nameof(query));
+            if (currentRetries <= 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+
             DataRow dataRow;
-            using (var Connection = CreateSqlConnection())
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
-                    using (var stmt = new Statement(query, Connection))
+                    connection.Open();
+                    using (var stmt = new Statement(query, connection))
                     {
                         dataRow = stmt.BindParameters(parameters)
                             .FetchRow();
                     }
 
-                    Connection.Close();
+                    connection.Close();
                 }
                 catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                    if (CurrentRetries < MaxRetries)
-                        return GetSingleResult(query, parameters, ++CurrentRetries);
+                    if (currentRetries < MaxRetries)
+                        return GetSingleResult(query, parameters, ++currentRetries);
                     throw;
                 }
             }
@@ -899,33 +910,45 @@ namespace DBApi
             return dataRow;
         }
 
-        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters, int CurrentRetries = 0)
+        /// <summary>
+        /// Executes a SQL Query and returns a <see cref="object"/> with the result
+        /// </summary>
+        /// <param name="query"></param>
+        /// <param name="parameters"></param>
+        /// <param name="currentRetries"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public object GetSingleScalarResult(string query, Dictionary<string, object> parameters = null, int currentRetries = 0)
         {
+            if (string.IsNullOrEmpty(query))
+                throw new ArgumentNullException(nameof(query));
+            if (currentRetries <= 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+            
             object value;
-            using (var Connection = CreateSqlConnection())
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
-                    using (var stmt = new Statement(query, Connection))
+                    connection.Open();
+                    using (var stmt = new Statement(query, connection))
                     {
                         value = stmt.BindParameters(parameters)
                             .FetchScalar();
                     }
 
-                    Connection.Close();
+                    connection.Close();
                 }
                 catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
-                    if (CurrentRetries < MaxRetries)
-                        return GetSingleScalarResult(query, parameters, ++CurrentRetries);
+                    if (currentRetries < MaxRetries)
+                        return GetSingleScalarResult(query, parameters, ++currentRetries);
                     throw;
                 }
             }
-
             return value;
         }
     }

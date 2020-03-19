@@ -1,5 +1,6 @@
 ﻿using DBApi.Reflection;
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Caching;
 
@@ -7,6 +8,14 @@ namespace DBApi
 {
     public static class CacheManager
     {
+        public static void ClearCache()
+        {
+            var keys = Cache.Select(c => c.Key);
+            foreach (var key in keys)
+            {
+                Cache.Remove(key);
+            }
+        }
         private static readonly ObjectCache Cache = MemoryCache.Default;
 
         public static string GetCacheKey<T>(object identifier) where T: class

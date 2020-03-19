@@ -45,6 +45,7 @@
       </e>
       <e p="OperationEventArgs.cs" t="Include" />
       <e p="packages" t="ExcludeRecursive" />
+      <e p="Profiler.cs" t="Include" />
       <e p="Properties" t="Include">
         <e p="PublishProfiles" t="Include">
           <e p="FolderProfile.pubxml" t="Include" />
