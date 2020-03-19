@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using DBApi.Reflection;
-/// <summary>
-/// Query Builder
-/// </summary>
+
 namespace DBApi.QueryBuilder
 {
     /// <summary>
@@ -18,9 +14,7 @@ namespace DBApi.QueryBuilder
     /// </remarks>
     public class QueryBuilder
     {
-        private readonly EntityManager entityManager;
-
-        private List<Expression> expressions;
+        private readonly List<Expression> expressions;
         /// <summary>
         /// Δημιουργεί έναν νέο QueryBuilder
         /// </summary>
@@ -28,25 +22,7 @@ namespace DBApi.QueryBuilder
         {
             expressions = new List<Expression>();
         }
-        /// <summary>
-        /// Δημιουργεί έναν νεο QueryBuilder
-        /// </summary>
-        /// <param name="em">Ο <see cref="EntityManager">Entity Manager</see> που θα χρησιμοποιήσουμε για να δημιουργήσουμε συνδέσεις στην βάση δεδομένων, κλπ.</param>
-        /// <param name="forceTest">Εάν ο καλούντας περάσει true, δημιουργείται μια απλή σύνδεση με την βάση δεδομένων, ώστε να ελέγξουμε την συνδεσιμότητα με τον database server. By default, είναι false</param>
-        /// <exception cref="SqlException">Δεν υπάρχει exception handling κατά το connection testing, οπότε, εάν αποτύχει η σύνδεση για κάποιο λόγο, θα πεταχτεί ένα exception</exception>
-        public QueryBuilder (EntityManager em, bool forceTest = false)
-            :this()
-        {
-            this.entityManager = em;
-            if (forceTest)
-            {
-                using (SqlConnection connection = entityManager.CreateSqlConnection())
-                {
-                    connection.Open();
-                    connection.Close();
-                }
-            }
-        }
+       
         /// <summary>
         /// Δημιουργεί ένα Select Statement
         /// </summary>
@@ -109,15 +85,13 @@ namespace DBApi.QueryBuilder
         }
         public QueryBuilder AndWhere(Expression expression)
         {
-            var AndExpr = new Where(expression, true);
-            AndExpr.Priority = 45;
+            var AndExpr = new Where(expression, true) {Priority = 45};
             expressions.Add(AndExpr);
             return this;
         }
         public QueryBuilder OrWhere(Expression expression)
         {
-            var OrExpr = new Where(expression, false, true);
-            OrExpr.Priority = 45;
+            var OrExpr = new Where(expression, false, true) {Priority = 45};
 
             expressions.Add(OrExpr);
             return this;
@@ -129,11 +103,11 @@ namespace DBApi.QueryBuilder
         }
         public QueryBuilder OrderAsc(string field)
         {
-            return this.OrderBy(field, "ASC");
+            return OrderBy(field);
         }
         public QueryBuilder OrderDesc(string field)
         {
-            return this.OrderBy(field, "DESC");
+            return OrderBy(field, "DESC");
         }
 
         public QueryBuilder Join(string tableName, string tableAlias, Operation onOperation)
@@ -183,9 +157,9 @@ namespace DBApi.QueryBuilder
         {
             foreach (var expression in expressions)
             {
-                if (expression is Select)
+                if (expression is Select select)
                 {
-                    ((Select)expression).SetLimit(rows);
+                    select.SetLimit(rows);
                 }
             }
             return this;
@@ -201,44 +175,44 @@ namespace DBApi.QueryBuilder
             StringBuilder strb = new StringBuilder();
             foreach (Expression expression in expressions)
             {
-                strb.Append(expression.ToString());
+                if (expression != null) strb.Append(expression);
             }
             return strb.ToString();
         }
         public QueryBuilder Insert(Type EntityType, bool output = false)
         {
-            this.expressions.Add(new InsertInto(EntityType, output));
+            expressions.Add(new InsertInto(EntityType, output));
             return this;
         }
         public QueryBuilder BeginTransaction(string TransactionId)
         {
-            this.expressions.Add(new BeginTransaction(TransactionId));
+            expressions.Add(new BeginTransaction(TransactionId));
             return this;
         }
         public QueryBuilder Commit(string TransactionId)
         {
-            this.expressions.Add(new CommitTransaction(TransactionId));
+            expressions.Add(new CommitTransaction(TransactionId));
             return this;
         }
         public QueryBuilder Rollback(string TransactionId)
         {
-            this.expressions.Add(new RollbackTransaction(TransactionId));
+            expressions.Add(new RollbackTransaction(TransactionId));
             return this;
         }
 
         internal QueryBuilder SelectInternal(ClassMetadata metadata)
         {
-            this.expressions.Add(new Select(metadata));
+            expressions.Add(new Select(metadata));
             return this;
         }
         internal QueryBuilder FromInternal(ClassMetadata metadata)
         {
-            this.expressions.Add(new From(metadata));
+            expressions.Add(new From(metadata));
             return this;
         }
         internal QueryBuilder UpdateInternal(ClassMetadata metadata)
         {
-            this.expressions.Add(new Update(metadata));
+            expressions.Add(new Update(metadata));
             return this;
         }
     }

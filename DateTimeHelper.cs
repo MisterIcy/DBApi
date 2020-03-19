@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DBApi
 {
@@ -13,7 +11,7 @@ namespace DBApi
             try
             {
                 return Convert.ToDateTime(dateTime);
-            } catch (Exception ex)
+            } catch
             {
                 try
                 {
@@ -45,15 +43,16 @@ namespace DBApi
         {
             var sign = Math.Sign(days);
             var unsignedDays = Math.Abs(days);
+            var dateTimes = holidays as DateTime[] ?? holidays.ToArray();
             for (var i = 0; i < unsignedDays; i++)
             {
                 do
                 {
                     current = current.AddDays(sign);
                 } while (
-                current.DayOfWeek == DayOfWeek.Saturday ||
-                current.DayOfWeek == DayOfWeek.Sunday ||
-                (holidays != null && holidays.Contains(current.Date)));
+                    current.DayOfWeek == DayOfWeek.Saturday ||
+                    current.DayOfWeek == DayOfWeek.Sunday ||
+                    (dateTimes.Contains(current.Date)));
             }
             return new DateTime(current.Year, current.Month, current.Day, 17,0,0);
         }

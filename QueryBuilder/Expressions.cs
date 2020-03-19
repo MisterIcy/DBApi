@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using DBApi.Reflection;
 namespace DBApi.QueryBuilder
 {
@@ -16,8 +15,8 @@ namespace DBApi.QueryBuilder
         protected List<Expression> Expressions { get; set; }
 #pragma warning restore CA2227 // Collection properties should be read only
 
-        public Expression() : this(0){ }
-        public Expression(int Priority)
+        protected Expression() : this(0){ }
+        protected Expression(int Priority)
         {
             this.Priority = Priority;
             this.Expressions = new List<Expression>();
@@ -33,7 +32,7 @@ namespace DBApi.QueryBuilder
             StringBuilder strb = new StringBuilder(PreSeperator);
             foreach (Expression expr in Expressions)
             {
-                strb.Append(expr.ToString())
+                strb.Append(expr)
                     .Append(Seperator);
             }
             if (strb.ToString().EndsWith(Seperator, StringComparison.InvariantCulture))
@@ -67,7 +66,7 @@ namespace DBApi.QueryBuilder
 
             foreach (var column in meta.Columns)
             {
-                if (column.Value.IsCustomColumn == true || column.Value.RelationshipType == RelationshipType.OneToMany)
+                if (column.Value.IsCustomColumn || column.Value.RelationshipType == RelationshipType.OneToMany)
                     continue;
 
                 this.Fields.Add(column.Value.ColumnName);
@@ -154,7 +153,7 @@ namespace DBApi.QueryBuilder
             this.Alias = Alias;
             this.WithOutput = Output;
             this.Identifier = OutputWhat;
-            this.Fields = fields.ToList<string>();
+            this.Fields = fields.ToList();
         }
 
         public InsertInto(Type EntityType, bool Output = false)
@@ -221,7 +220,7 @@ namespace DBApi.QueryBuilder
         }
         public AndX(params Operation[] Operations)
         {
-            this.Operations = Operations.ToList<Operation>();
+            this.Operations = Operations.ToList();
         }
         public override string ToString()
         {
@@ -250,7 +249,7 @@ namespace DBApi.QueryBuilder
         }
         public OrX(params Operation[] Operations)
         {
-            this.Operations = Operations.ToList<Operation>();
+            this.Operations = Operations.ToList();
         }
 
         public override string ToString()
@@ -303,7 +302,7 @@ namespace DBApi.QueryBuilder
         {
             this.PreSeperator = "";
             this.PostSeperator = "";
-            this.fields = fields.ToList<string>();
+            this.fields = fields.ToList();
         }
         public Select(Type EntityType)
             :base(90)
@@ -441,7 +440,7 @@ namespace DBApi.QueryBuilder
         }
         public Having(Operation Operation)
         {
-            this.Condition = "COUNT(" + Operation.ToString() + ")";
+            this.Condition = "COUNT(" + Operation + ")";
         }
         public override string ToString()
         {
@@ -453,8 +452,8 @@ namespace DBApi.QueryBuilder
     }
     public class OrderBy : Expression
     {
-        private readonly string field = string.Empty;
-        private readonly string order = "ASC";
+        private readonly string field;
+        private readonly string order;
         public OrderBy(string field, string order = "ASC")
             :base (10)
         {
@@ -472,9 +471,9 @@ namespace DBApi.QueryBuilder
     #region Join Expressions
     public abstract class Join : Expression
     {
-        private readonly string JoinType = "JOIN";
-        private readonly string TableName = string.Empty;
-        private readonly string TableAlias = string.Empty;
+        private readonly string JoinType;
+        private readonly string TableName;
+        private readonly string TableAlias;
         private readonly Operation Operation;
 
         public override string ToString()
@@ -482,10 +481,10 @@ namespace DBApi.QueryBuilder
             return new StringBuilder(JoinType + " ")
                 .Append(TableName + " ")
                 .Append(TableAlias + " ON ")
-                .Append(Operation.ToString() + " ")
+                .Append(Operation + " ")
                 .ToString();
         }
-        public Join(string JoinType, string TableName, string TableAlias, Operation operation)
+        protected Join(string JoinType, string TableName, string TableAlias, Operation operation)
             :base(70)
         {
             this.JoinType = JoinType;
@@ -530,7 +529,7 @@ namespace DBApi.QueryBuilder
         private readonly object RightOperand;
         protected string Operator { get; set; } = string.Empty;
 
-        public Operation(object Left, object Right)
+        protected Operation(object Left, object Right)
         {
             this.LeftOperand = Left;
             this.RightOperand = Right;
@@ -548,15 +547,15 @@ namespace DBApi.QueryBuilder
 
         private static string GetOperand (object Operand)
         {
-            if (Operand is DateTime)
+            if (Operand is DateTime dateTime)
             {
-                return "'" + ((DateTime)Operand)
+                return "'" + dateTime
                     .ToString(DateFormat, System.Globalization.CultureInfo.InvariantCulture);
             }
             return Operand.ToString();
         }
-        protected string Left { get => GetOperand(this.LeftOperand); }
-        protected string Right {get => GetOperand(this.RightOperand); }
+        protected string Left => GetOperand(this.LeftOperand);
+        protected string Right => GetOperand(this.RightOperand);
     }
     public sealed class Eq: Operation
     {
@@ -662,7 +661,7 @@ namespace DBApi.QueryBuilder
         {
             this.Seperator = ", ";
             this.Operator = "IN";
-            this.values = values.ToList<object>();
+            this.values = values.ToList();
         }
 
         public override string ToString()
@@ -672,7 +671,7 @@ namespace DBApi.QueryBuilder
 
             foreach (var value in values)
             {
-                strb.Append(value.ToString()).Append(Seperator);
+                strb.Append(value).Append(Seperator);
             }
             if (strb.ToString().EndsWith(Seperator, StringComparison.InvariantCulture))
                 strb.Remove(strb.Length - Seperator.Length, Seperator.Length);
@@ -704,12 +703,12 @@ namespace DBApi.QueryBuilder
     #endregion
 
     #region Transactions
-    public  abstract class TransactionExpression : Expression
+    public abstract class TransactionExpression : Expression
     {
         protected string TransactionId { get; set; }
         protected string Operation { get; set; }
 
-        public TransactionExpression(int Priority)
+        protected TransactionExpression(int Priority)
             :base(Priority) { }
         public override string ToString()
         {
@@ -757,10 +756,11 @@ namespace DBApi.QueryBuilder
     {
         public int Compare(Expression x, Expression y)
         {
-            if (x.Priority == 0 || y.Priority == 0)
+            if (y != null && (x != null && (x.Priority == 0 || y.Priority == 0)))
                 return 0;
-            
-            return y.Priority.CompareTo(x.Priority);
+
+            if (y == null) return 0;
+            return x != null ? y.Priority.CompareTo(x.Priority) : 0;
         }
     }
 

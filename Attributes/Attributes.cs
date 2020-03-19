@@ -1,14 +1,12 @@
 ﻿using System;
 
-#pragma warning disable CA1721 // Property names should not match get methods
 namespace DBApi.Attributes
 {
     /// <summary>
-    /// Επισημαίνει την κλάση ως οντότητα
+    /// States that is class is an entity
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class EntityAttribute : Attribute {
-        public EntityAttribute() { }
     }
 
     /// <summary>
@@ -27,7 +25,7 @@ namespace DBApi.Attributes
         /// <summary>
         /// Όνομα πίνακα στην βάση δεδομένων
         /// </summary>
-        public string TableName { get; private set; }
+        public string TableName { get; }
     }
 
     /// <summary>
@@ -36,7 +34,6 @@ namespace DBApi.Attributes
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class IdentityAttribute : Attribute
     {
-        public IdentityAttribute() { }
     }
     /// <summary>
     /// Επισημαίνει το πεδίο ώς μοναδικό αναγνωριστικό (GUID) της οντότητας
@@ -44,7 +41,6 @@ namespace DBApi.Attributes
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class GuidAttribute : Attribute
     {
-        public GuidAttribute() { }
     }
     /// <summary>
     /// Επισημαίνει πως το πεδίο συσχετίζεται με συγκεκριμένη στήλη του πίνακα
@@ -57,7 +53,7 @@ namespace DBApi.Attributes
             if (string.IsNullOrEmpty(Name))
                 throw new ArgumentNullException(nameof(Name));
 
-            this.ColumnName = Name;
+            ColumnName = Name;
             this.ColumnType = ColumnType;
             this.Nullable = Nullable;
             this.Unique = Unique;
@@ -65,19 +61,19 @@ namespace DBApi.Attributes
         /// <summary>
         /// Όνομα στηλης στον πίνακα
         /// </summary>
-        public string ColumnName { get; private set; }
+        public string ColumnName { get; }
         /// <summary>
         /// Τύπος στήλης
         /// </summary>
-        public ColumnType ColumnType { get; private set; }
+        public ColumnType ColumnType { get; }
         /// <summary>
         /// Δέχεται NULL τιμες;
         /// </summary>
-        public bool Nullable { get; private set; }
+        public bool Nullable { get; }
         /// <summary>
         /// Είναι μοναδικό;
         /// </summary>
-        public bool Unique { get; private set; }
+        public bool Unique { get; }
     }
 
     /// <summary>
@@ -91,29 +87,29 @@ namespace DBApi.Attributes
             if (string.IsNullOrEmpty(TableName))
                 throw new ArgumentNullException(nameof(TableName));
 
-            this.CustomTableName = TableName;
+            CustomTableName = TableName;
             if (string.IsNullOrEmpty(IdentifierColumn))
                 throw new ArgumentNullException(nameof(IdentifierColumn));
             this.IdentifierColumn = IdentifierColumn;
-            this.CustomFieldId = ColumnFieldId;
+            CustomFieldId = ColumnFieldId;
             this.ColumnType = ColumnType;
         }
         /// <summary>
         /// Ο πίνακας όπου αποθηκεύονται τα παραμετρικά
         /// </summary>
-        public string CustomTableName { get; private set; }
+        public string CustomTableName { get; }
         /// <summary>
         /// Η στήλη που "συσχετίζει" το παραμετρικό πεδίο με την οντότητα στην οποία ανήκει
         /// </summary>
-        public string IdentifierColumn { get; private set; }
+        public string IdentifierColumn { get; }
         /// <summary>
         /// Το αναγνωριστικό του παραμετρικού πεδίου
         /// </summary>
-        public int CustomFieldId { get; private set; }
+        public int CustomFieldId { get; }
         /// <summary>
         /// Τύπος πεδίου
         /// </summary>
-        public ColumnType ColumnType { get; private set; }
+        public ColumnType ColumnType { get; }
     }
     /// <summary>
     /// Καθορίζει την αποθήκευση αντικειμένων στην λανθάνουσα μνήμη
@@ -124,11 +120,11 @@ namespace DBApi.Attributes
         /// <summary>
         /// Χρόνος παραμονής στην λανθάνουσα μνήμη, σε δευτερόλεπτα
         /// </summary>
-        public long Duration { get; private set; } = 3600;
+        public long Duration { get; }
         /// <summary>
         /// True εάν δεν θα πρέπει να αποθηκεύουμε ποτέ την ονότητα στη λανθάνουσα μνήμη
         /// </summary>
-        public bool NoCache { get; private set; } = false;
+        public bool NoCache { get; }
         public CacheControlAttribute(long Duration  = 3600, bool NoCache = false)
         {
             this.Duration = Duration;
@@ -144,11 +140,11 @@ namespace DBApi.Attributes
         /// <summary>
         /// Τύπος οντότητας που είναι συνδεδεμένος με την παρούσα οντότητα
         /// </summary>
-        public Type TargetEntity { get; private set; }
+        public Type TargetEntity { get; }
         /// <summary>
         /// Πεδίο όπου υπάρχει το αναγνωριστικό, ώστε να είναι εφικτή η συσχέτιση
         /// </summary>
-        public string IdentifierColumn { get; private set; }
+        public string IdentifierColumn { get; }
 
         public ManyToOneAttribute(Type TargetEntity, string Identifier)
         {
@@ -157,7 +153,7 @@ namespace DBApi.Attributes
             if (string.IsNullOrEmpty(Identifier))
                 throw new ArgumentNullException(nameof(Identifier));
             
-            this.IdentifierColumn = Identifier;
+            IdentifierColumn = Identifier;
         }
     }
     /// <summary>
@@ -169,15 +165,15 @@ namespace DBApi.Attributes
         /// <summary>
         /// Τύπος οντότητας που είναι συνδεδεμένος με την παρούσα οντότητα
         /// </summary>
-        public Type TargetEntity { get; private set; }
+        public Type TargetEntity { get; }
         /// <summary>
         /// Πεδίο όπου υπάρχει το αναγνωριστικό, ώστε να είναι εφικτή η συσχέτιση
         /// </summary>
-        public string IdentifierColumn { get; private set; }
+        public string IdentifierColumn { get; }
 
         public OneToManyAttribute(Type targetEntity, string referencedColumn)
         {
-            this.TargetEntity = targetEntity ?? throw new ArgumentNullException(nameof(targetEntity));
+            TargetEntity = targetEntity ?? throw new ArgumentNullException(nameof(targetEntity));
 
             if (string.IsNullOrEmpty(referencedColumn))
                 throw new ArgumentNullException(nameof(referencedColumn));

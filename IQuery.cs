@@ -1,8 +1,5 @@
 ﻿using DBApi.Reflection;
-using System;
-using System.Collections.Generic;
 using DBApi.QueryBuilder;
-using System.Text;
 
 namespace DBApi
 {

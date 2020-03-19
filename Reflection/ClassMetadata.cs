@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using DBApi.Attributes;
+
 namespace DBApi.Reflection
 {
     /// <summary>
@@ -13,47 +14,47 @@ namespace DBApi.Reflection
         /// <summary>
         /// Όνομα Οντότητας / Κλάσης
         /// </summary>
-        public string EntityName { get; private set; }
+        public string EntityName { get; }
         /// <summary>
         /// Τύπος οντότητας
         /// </summary>
-        public Type EntityType { get; private set; }
+        public Type EntityType { get; }
         /// <summary>
         /// Κλειδί λανθάνουσας μνήμης - για διαχείριση των μεταδεδομένων στην λανθάνουσα μνήμη
         /// </summary>
-        public string CacheKey { get; private set; }
+        public string CacheKey { get; }
         /// <summary>
         /// Ο πίνακας που έχει συσχετιστεί με την οντόητα
         /// </summary>
-        public string TableName { get; private set; }
+        public string TableName { get; }
         /// <summary>
         /// Το όνομα της στήλης του πίνακα που περιέχει το αναγνωριστικό / πρωτεύον κλειδί
         /// </summary>
-        public string IdentifierColumn { get; private set; }
+        public string IdentifierColumn { get; }
         /// <summary>
         /// Πίνακας στον οποίο αποθηκεύονται τα παραμετρικά πεδία
         /// </summary>
-        public string CustomTable { get; private set; }
+        public string CustomTable { get; }
         /// <summary>
         /// Όνομα στηλης στον πίνακα παραμετρικών πεδίων, όπου γίνεται η αναφορά στην οντότητα
         /// </summary>
-        public string CustomReferenceColumn { get; private set; }
+        public string CustomReferenceColumn { get; }
         /// <summary>
         /// Στήλη η οποία περιέχει το Guid της γραμμής / οντότητας
         /// </summary>
-        public string GuidColumn { get; private set; }
+        public string GuidColumn { get; }
         /// <summary>
         /// Cache Duration
         /// </summary>
-        public long CacheDuration { get; private set; } = 3600;
+        public long CacheDuration { get; } = 3600;
         /// <summary>
         /// NO cache
         /// </summary>
-        public bool NoCache { get; private set; } = false;
+        public bool NoCache { get; }
         /// <summary>
         /// Μεταδεδομένα πεδίων / στηλών της οντότητας
         /// </summary>
-        public Dictionary<string, ColumnMetadata> Columns { get; private set; }
+        public Dictionary<string, ColumnMetadata> Columns { get; }
         /// <summary>
         /// Δημιουργεί ένα νέο αντικείμενο μεταδεδομένων οντότητας
         /// </summary>
@@ -64,47 +65,50 @@ namespace DBApi.Reflection
             if (!IsEntity(this.EntityType))
                 throw MetadataException.InvalidEntity(this.EntityType);
 
-            this.EntityName = this.EntityType.Name;
-            this.CacheKey = GetCacheKey(this.EntityType);
-            this.TableName = GetTableName(this.EntityType);
-            this.Columns = GetColumns(this.EntityType);
+            EntityName = this.EntityType.Name;
+            CacheKey = GetCacheKey(this.EntityType);
+            TableName = GetTableName(this.EntityType);
+            Columns = GetColumns(this.EntityType);
             try
             {
                 //Εαν η οντότητα δεν έχει καμία στηλή με το IdentifierAttribute, η παρακάτω
                 //γραμμή θα σκάσει και θα μας πάρει στο λαιμό της. Εξ ού και το try-catch
-                this.IdentifierColumn = this.Columns.Select(c => c.Value)
-                    .Where(c => c.IsIdentifier == true)
-                    .First().ColumnName;
-            } catch (Exception ex)
+                IdentifierColumn = Columns
+                    .Select(c => c.Value)
+                    .First(c => c.IsIdentifier).ColumnName;
+            } catch (Exception)
             {
-                throw MetadataException.MissingIdentifierAttribute(this.EntityName);
+                throw MetadataException.MissingIdentifierAttribute(EntityName);
             }
 
             //Σε αντίθεση με παραπάνω, οι οντότητες δεν είναι υποχρεωμένες να έχουν 
             //παραμετρικά πεδία ή (πιο κάτω) στήλη Guid, οπότε εδώ αρκούν απλοί έλεγχοι
             //για την ύπαρξη παραμετρικών ή στήλης Guid
-            if (this.HasCustomColumns())
+            if (HasCustomColumns())
             {
-                this.CustomTable = this.Columns.Select(c => c.Value)
-                    .Where(c => c.IsCustomColumn == true)
-                    .FirstOrDefault().CustomFieldTable ?? string.Empty;
-                this.CustomReferenceColumn = this.Columns.Select(c => c.Value)
-                    .Where(c => c.IsCustomColumn == true)
-                    .FirstOrDefault().CustomFieldReference ?? string.Empty;
+                CustomTable = Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.IsCustomColumn)
+                    ?.CustomFieldTable ?? string.Empty;
+                CustomReferenceColumn = Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.IsCustomColumn)
+                    ?.CustomFieldReference ?? string.Empty;
             }
 
             if (HasGuidColumn())
             {
-                this.GuidColumn = this.Columns.Select(c => c.Value)
-                    .Where(c => c.IsRowGuid == true)
-                    .FirstOrDefault().ColumnName ?? string.Empty;
+                GuidColumn = Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.IsRowGuid)
+                    ?.ColumnName ?? string.Empty;
             }
 
             CacheControlAttribute cacheAttr = this.EntityType.GetCustomAttribute<CacheControlAttribute>();
             if (cacheAttr != null)
             {
-                this.CacheDuration = cacheAttr.Duration;
-                this.NoCache = cacheAttr.NoCache;
+                CacheDuration = cacheAttr.Duration;
+                NoCache = cacheAttr.NoCache;
             }
         }
         /// <summary>
@@ -113,9 +117,9 @@ namespace DBApi.Reflection
         /// <returns>True αν υπάρχει στήλη με το GuidAttribute, αλλιώς false</returns>
         public bool HasGuidColumn()
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.IsRowGuid)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.IsRowGuid);
         }
         /// <summary>
         /// Ελέγχει εάν υπάρχει μια συγκεκριμένη στηλη στην οντότητα
@@ -124,9 +128,9 @@ namespace DBApi.Reflection
         /// <returns>True εάν υπάρχει η στήλη, αλλιώς false</returns>
         public bool ContainsColumn(string columnName)
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.ColumnName == columnName)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.ColumnName == columnName);
         }
         /// <summary>
         /// Ελέγχει εάν υπάρχει ένα συγκεκριμένο πεδίο στην όντότητα
@@ -135,9 +139,9 @@ namespace DBApi.Reflection
         /// <returns>True εάν υπάρχει το πεδίο, αλλιώς false</returns>
         public bool ContainsField(string fieldName)
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.FieldName == fieldName)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.FieldName == fieldName);
         }
         /// <summary>
         /// Επιστρέφει τα μεταδεδομένα μιας στήλης
@@ -148,10 +152,10 @@ namespace DBApi.Reflection
         public ColumnMetadata GetColumnMetadata(string columnName)
         {
             if (ContainsColumn(columnName))
-                return this.Columns.Select(c => c.Value)
-                    .Where(c => c.ColumnName == columnName)
-                    .FirstOrDefault();
-            throw MetadataException.NonExistentColumn(columnName, this.EntityName);
+                return Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.ColumnName == columnName);
+            throw MetadataException.NonExistentColumn(columnName, EntityName);
         }
         /// <summary>
         /// Επιστρέφει το <see cref="FieldInfo"/> μιας συγκεκριμένης στήλης, για χρήση (reflection)
@@ -169,7 +173,7 @@ namespace DBApi.Reflection
         /// <returns></returns>
         public FieldInfo GetIdentifierField()
         {
-            return GetColumnFieldInfo(this.IdentifierColumn);
+            return GetColumnFieldInfo(IdentifierColumn);
         }
         /// <summary>
         /// Ελέγχει εαν η οντότητα έχει παραμετρικά πεδία
@@ -177,9 +181,9 @@ namespace DBApi.Reflection
         /// <returns>True εαν η οντότητα έχει παραμετρικά, αλλιώς false</returns>
         public bool HasCustomColumns()
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.IsCustomColumn == true)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.IsCustomColumn);
         }
         /// <summary>
         /// Ελέγχει εάν η οντότητα έχει συσχετίσεις
@@ -187,9 +191,9 @@ namespace DBApi.Reflection
         /// <returns>True εαν υπάρχουν συσχετίσεις, αλλιώς False</returns>
         public bool HasRelationships()
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.IsRelationship == true)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.IsRelationship);
         }
         /// <summary>
         /// Ελέγχει εαν η οντότητα έχει ένα παραμετρικό πεδίο
@@ -198,9 +202,9 @@ namespace DBApi.Reflection
         /// <returns>True εάν υπάρχει το παραμετρικό, αλλιώς false</returns>
         public bool HasCustomColumn(int customFieldId)
         {
-            return this.Columns.Select(c => c.Value)
-                .Where(c => c.IsCustomColumn && c.CustomFieldId == customFieldId)
-                .Any();
+            return Columns
+                .Select(c => c.Value)
+                .Any(c => c.IsCustomColumn && c.CustomFieldId == customFieldId);
         }
         /// <summary>
         /// Επιστρέφει τα μεταδεδομένα ενός παραμετρικού πεδίου της οντότητας
@@ -210,10 +214,10 @@ namespace DBApi.Reflection
         public ColumnMetadata GetCustomColumnMetadata(int customFieldId)
         {
             if (HasCustomColumn(customFieldId))
-                return this.Columns.Select(c => c.Value)
-                    .Where(c => c.IsCustomColumn && c.CustomFieldId == customFieldId)
-                    .FirstOrDefault();
-            throw MetadataException.NonExistentCustomColumn(customFieldId, this.EntityName);
+                return Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.IsCustomColumn && c.CustomFieldId == customFieldId);
+            throw MetadataException.NonExistentCustomColumn(customFieldId, EntityName);
         }
         /// <summary>
         /// Επιστρέφει το <see cref="FieldInfo"/> ενός παραμετρικού πεδίου της οντότητας
@@ -232,8 +236,8 @@ namespace DBApi.Reflection
         public List<string> GetDatabaseFields()
         {
             var fieldColumn = Columns.Select(c => c.Value)
-                .Where(c => (c.IsCustomColumn != true) || (c.IsRelationship == false) || (c.IsRelationship == true && c.RelationshipType == RelationshipType.ManyToOne))
-                .ToList<ColumnMetadata>();
+                .Where(c => (c.IsCustomColumn != true) || (c.IsRelationship == false) || (c.IsRelationship && c.RelationshipType == RelationshipType.ManyToOne))
+                .ToList();
             return fieldColumn.Select(c => c.ColumnName)
                 .ToList();
         }
@@ -299,7 +303,7 @@ namespace DBApi.Reflection
                 }
                 catch
                 {
-                    continue;
+                    // ignored
                 }
             }
             return metadataDict;
@@ -332,10 +336,10 @@ namespace DBApi.Reflection
 
                         var relationshipIdentifier = objectMeta.GetIdentifierField().GetValue(relatedObject);
                         //ΑΤΤΝ: This fixes #30
-                        var relationshipValue = objectMeta.Columns.Select(c => c.Value)
-                            .Where(c => c.ColumnName == column.RelationshipReferenceColumn)
-                            .FirstOrDefault()
-                            .FieldInfo
+                        var relationshipValue = objectMeta.Columns
+                            .Select(c => c.Value)
+                            .FirstOrDefault(c => c.ColumnName == column.RelationshipReferenceColumn)
+                            ?.FieldInfo
                             .GetValue(relatedObject);
 
                         param.Add("@" + column.ColumnName, relationshipValue);

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 
 namespace DBApi.Reflection
@@ -16,10 +15,6 @@ namespace DBApi.Reflection
         }
 
         public MetadataException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected MetadataException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
         #endregion

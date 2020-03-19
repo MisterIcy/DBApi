@@ -14,43 +14,43 @@ namespace DBApi.Reflection
         /// <summary>
         /// Όνομα πεδίου
         /// </summary>
-        public string FieldName { get; private set; }
+        public string FieldName { get; }
         /// <summary>
         /// Τυπος πεδίου
         /// </summary>
-        public Type FieldType { get; private set; }
+        public Type FieldType { get; }
         /// <summary>
         /// Όνομα στήλης στον πίνακα
         /// </summary>
-        public string ColumnName { get; private set; }
+        public string ColumnName { get; }
         /// <summary>
         /// Τυπος στήλης
         /// </summary>
-        public Type ColumnType { get; private set; }
+        public Type ColumnType { get; }
         /// <summary>
         /// Είναι μοναδικό αναγνωριστικό / πρωτεύον κλειδί;
         /// </summary>
-        public bool IsIdentifier { get; private set; } = false;
+        public bool IsIdentifier { get; } = false;
         /// <summary>
         /// Οι τιμές της στήλης πρέπει να είναι μοναδικές;
         /// </summary>
-        public bool IsUnique { get; private set; } = false;
+        public bool IsUnique { get; } = false;
         /// <summary>
         /// Η στήλη μπορεί να περιέχει NULL τιμες;
         /// </summary>
-        public bool IsNullable { get; private set; } = true;
+        public bool IsNullable { get; } = true;
         /// <summary>
         /// Είναι παραμετρικό πεδίο;
         /// </summary>
-        public bool IsCustomColumn { get; private set; } = false;
+        public bool IsCustomColumn { get; } = false;
         /// <summary>
         /// Όνομα πίνακα παραμετρικών πεδίων
         /// </summary>
-        public string CustomFieldTable { get; private set; }
+        public string CustomFieldTable { get; }
         /// <summary>
         /// ID παραμετρικού πεδίου
         /// </summary>
-        public int CustomFieldId{ get; private set; }
+        public int CustomFieldId{ get; }
         /// <summary>
         /// Όνομα πεδίου το οποίο χρησιμοποιούμε ως αναφορά στον πατρικό πίνακα της οντότητας
         /// </summary>
@@ -59,31 +59,31 @@ namespace DBApi.Reflection
         /// Many To One συσχετίσεις. Η πρώτη είναι με το παραμετρικό πεδίο - τα παραμετρικά σώζονται σε άλλο πίνακα - 
         /// και η δεύτερη με την συσχετισμένη οντότητα. Για να ξέρουμε με ποιο πεδίο θα πρέπει να συσχετίσουμε αρα
         /// και τν να ψάξουμε / γ΄ραψουμε, θα πρέπει να ξέρουμε που "Δενει" </remarks>
-        public string CustomFieldReference { get; private set; }
+        public string CustomFieldReference { get; }
         /// <summary>
         /// Είναι συσχέτιση;
         /// </summary>
-        public bool IsRelationship { get; private set; }
+        public bool IsRelationship { get; }
         /// <summary>
         /// Τύπος συσχέτισης
         /// </summary>
-        public RelationshipType RelationshipType { get; private set; }
+        public RelationshipType RelationshipType { get; }
         /// <summary>
         /// Συσχετιζόμενη οντότητα
         /// </summary>
-        public Type TargetEntity { get; private set; }
+        public Type TargetEntity { get; }
         /// <summary>
         /// Αναφερόμενη στήλη στην συσχετισμένη οντότητα
         /// </summary>
-        public string RelationshipReferenceColumn { get; private set; }
+        public string RelationshipReferenceColumn { get; }
         /// <summary>
         /// FieldInfo για χρήση Reflection
         /// </summary>
-        public FieldInfo FieldInfo { get; private set; }
+        public FieldInfo FieldInfo { get; }
         /// <summary>
         /// Είναι Guid?
         /// </summary>
-        public bool IsRowGuid { get; private set; } = false;
+        public bool IsRowGuid { get; } = false;
         /// <summary>
         /// Δημιουργεί ένα νέο αντικείμενο μεταδεδομένων στήλης / πεδίου οντότητας
         /// </summary>
@@ -217,14 +217,14 @@ namespace DBApi.Reflection
 
             ClassMetadata mainMeta = MetadataCache.Get(EntityObject.GetType());
 
-            Dictionary<string, object> parameters = new Dictionary<string, object>();
+            Dictionary<string, object> parameters = new Dictionary<string, object>
+            {
+                {"@customFieldId", this.CustomFieldId},
+                {"@identifier", mainMeta.GetIdentifierField().GetValue(EntityObject)}
+            };
 
 
-            parameters.Add("@customFieldId", this.CustomFieldId);
-            parameters.Add("@identifier", mainMeta.GetIdentifierField().GetValue(EntityObject));
-            object temp = this.FieldInfo.GetValue(EntityObject);
-            if (temp == null)
-                temp = DBNull.Value;
+            object temp = this.FieldInfo.GetValue(EntityObject) ?? DBNull.Value;
 
             parameters.Add("@fieldValue", temp);
 

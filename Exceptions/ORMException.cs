@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace DBApi.Exceptions
 {
@@ -28,7 +26,7 @@ namespace DBApi.Exceptions
     }
     public class ORMStatementException : ORMException
     {
-        public string Sql { get; private set; }
+        public string Sql { get; }
         public ORMStatementException(string Sql, string message) : base(message)
         {
             this.Sql = Sql;

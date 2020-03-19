@@ -1,9 +1,7 @@
 ﻿using DBApi.Reflection;
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Caching;
-using System.Text;
 
 namespace DBApi
 {
@@ -17,7 +15,7 @@ namespace DBApi
         }
         public static string GetCacheKey(Type entityType, object identifier)
         {
-            return $"{entityType.ToString()}:{identifier.ToString()}";
+            return $"{entityType}:{identifier}";
         }
 
         public static T Get<T>(object identifier) where T: class
@@ -48,7 +46,7 @@ namespace DBApi
                     GetCacheKey(entityType, metadata.GetIdentifierField().GetValue(entityObject)),
                     entityObject,
                     DateTime.Now.AddSeconds(metadata.CacheDuration));
-            } catch (TargetException tex)
+            } catch (TargetException)
             {
                 return false;
             }

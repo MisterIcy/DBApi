@@ -3,19 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Data.SqlTypes;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DBApi
 {
     public class Statement : IStatement
     {
-        public string Sql { get; private set; } = string.Empty;
+        public string Sql { get; }
         private bool dirty = false;
 
-        private readonly SqlConnection connection;
         private readonly SqlCommand command;
         public Statement(string Query, SqlConnection connection)
         {
@@ -23,8 +18,7 @@ namespace DBApi
                 throw new ArgumentNullException(nameof(Query));
 
             this.Sql = Query;
-
-            this.connection = connection ??
+            if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
 
             this.command = new SqlCommand(Sql, connection);
@@ -35,7 +29,7 @@ namespace DBApi
         {
             if (value == null)
                 value = DBNull.Value;
-            if (value is DateTime && (DateTime)value == DateTime.MinValue)
+            if (value is DateTime dateTime && dateTime == DateTime.MinValue)
                 value = DBNull.Value;
 
             this.command.Parameters.Add(new SqlParameter(name, value));

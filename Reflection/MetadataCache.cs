@@ -11,14 +11,14 @@ namespace DBApi.Reflection
     {
         private static readonly ObjectCache Cache = MemoryCache.Default;
 
-        private static CacheItemPolicy CacheItemPolicy = new CacheItemPolicy { Priority = CacheItemPriority.Default };
+        private static readonly CacheItemPolicy CacheItemPolicy = new CacheItemPolicy { Priority = CacheItemPriority.Default };
 
         /// <summary>
         /// Αδειάζει όλη την λανθάνουσα μνήμη
         /// </summary>
         public static void ClearCache()
         {
-            var keys = Cache.Select(k => k.Key).ToList<string>();
+            var keys = Cache.Select(k => k.Key).ToList();
             foreach (string key in keys)
             {
                 Cache.Remove(key);
@@ -55,7 +55,7 @@ namespace DBApi.Reflection
         /// <summary>
         /// Φέρνει τα μεταδεδομένα μιας οντότητας από την λανθάνουσα μνήμη
         /// </summary>
-        /// <param name="EntityType">Ο τύπος της κλάσης που έχει μαρκαριστεί ως οντότητα</param>
+        /// <param name="entityType">Ο τύπος της κλάσης που έχει μαρκαριστεί ως οντότητα</param>
         /// <returns>Αντικείμενο μεταδεδομένων οντότητας</returns>
         public static ClassMetadata Get(Type entityType)
         {
