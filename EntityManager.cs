@@ -739,10 +739,10 @@ namespace DBApi
                 OnEndListing(metadata.EntityType, count);
                 return null;
             }
-            var entityList = new List<T>();
+            var entityList = new List<object>();
             foreach (DataRow row in dt.Rows)
             {
-                entityList.Add(HydrateObject(row, metadata) as T);
+                entityList.Add(HydrateObject(row, metadata));
                 OnEntityLoaded(metadata.EntityType, 0);
             }
             OnEndListing(metadata.EntityType, count);
