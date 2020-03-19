@@ -109,16 +109,6 @@ namespace DBApi
         {
             return FindById(entityType, identifier, 0);
         }
-
-        public List<T> FindBy<T>(Dictionary<string, object> parameters) where T : class
-        {
-            return FindBy<T>(parameters, 0);
-        }
-
-        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters)
-        {
-            return FindBy(entityType, parameters, 0);
-        }
         
         public event EventHandler<OperationEventArgs> OperationComplete;
 
@@ -632,109 +622,8 @@ namespace DBApi
             return null;
         }
 
-        public List<T> FindBy<T>(Dictionary<string, object> parameters, int CurrentRetries = 0) where T : class
-        {
-            var metadata = MetadataCache.Get<T>();
-
-            var Query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
-                .From(metadata.TableName);
-
-            var currentParam = 0;
-            if (parameters != null && parameters.Count > 0)
-                foreach (var parameter in parameters)
-                {
-                    Query = currentParam == 0
-                        ? Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"))
-                        : Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
-                    currentParam++;
-                }
-
-            DataTable dt;
-            using (var Connection = CreateSqlConnection())
-            {
-                try
-                {
-                    Connection.Open();
-                    using (var stmt = new Statement(Query.GetQuery(), Connection))
-                    {
-                        dt = stmt.BindParameters(parameters)
-                            .Fetch();
-                    }
-
-                    Connection.Close();
-                }
-                catch (SqlException)
-                {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
-
-                    if (CurrentRetries < MaxRetries)
-                        return FindBy<T>(parameters, ++CurrentRetries);
-                    throw;
-                }
-            }
-
-            var objects = new List<T>();
-            if (dt != null && dt.Rows.Count > 0)
-                foreach (DataRow row in dt.Rows)
-                    objects.Add(FindById<T>(row[0]));
-            return objects;
-        }
-
-        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters, int CurrentRetries = 0)
-        {
-            var metadata = MetadataCache.Get(entityType);
-
-            var Query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
-                .From(metadata.TableName);
-
-            var currentParam = 0;
-            if (parameters != null && parameters.Count > 0)
-                foreach (var parameter in parameters)
-                {
-                    Query = currentParam == 0
-                        ? Query.Where(new Eq(parameter.Key, $"@{parameter.Key}"))
-                        : Query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
-                    currentParam++;
-                }
-
-            DataTable dt;
-            using (var Connection = CreateSqlConnection())
-            {
-                try
-                {
-                    Connection.Open();
-                    using (var stmt = new Statement(Query.GetQuery(), Connection))
-                    {
-                        dt = stmt.BindParameters(parameters)
-                            .Fetch();
-                    }
-
-                    Connection.Close();
-                }
-                catch (SqlException)
-                {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
-
-                    if (CurrentRetries < MaxRetries)
-                        return FindBy(entityType, parameters, ++CurrentRetries);
-                    throw;
-                }
-            }
-
-            var objects = new List<object>();
-            if (dt != null && dt.Rows.Count > 0)
-                foreach (DataRow row in dt.Rows)
-                    objects.Add(FindById(entityType, row[0]));
-            return objects;
-        }
-
-        // ReSharper disable once MemberCanBePrivate.Global
-        public List<T> FindAll<T>(int currentRetries = 0) where T : class
-        {
+        public List<T> FindBy<T>(Dictionary<string, object> parameters = null, int currentRetries = 0) where T : class
+        { 
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
             
             var metadata = MetadataCache.Get<T>();
@@ -743,8 +632,19 @@ namespace DBApi
 
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
-                .FromInternal(metadata)
-                .GetQuery();
+                .FromInternal(metadata);
+            
+            var currentParam = 0;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var parameter in parameters)
+                {
+                    query = currentParam == 0
+                        ? query.Where(new Eq(parameter.Key, $"@{parameter.Key}"))
+                        : query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
+                    currentParam++;
+                }
+            }
 
             DataTable dt;
             using (var connection = CreateSqlConnection())
@@ -752,9 +652,9 @@ namespace DBApi
                 try
                 {
                     connection.Open();
-                    using (var stmt = new Statement(query, connection))
+                    using (var stmt = new Statement(query.GetQuery(), connection))
                     {
-                        dt = stmt.Fetch();
+                        dt = stmt.BindParameters(parameters).Fetch();
                     }
                     connection.Close();
                 }catch (SqlException)
@@ -763,7 +663,7 @@ namespace DBApi
                         connection.Close();
 
                     if (currentRetries < MaxRetries)
-                        return FindAll<T>(++currentRetries);
+                        return FindBy<T>(parameters, ++currentRetries);
                     throw;
                 }
             }
@@ -777,8 +677,8 @@ namespace DBApi
             OnEndListing(metadata.EntityType, count);
             return entityList;
         }
-        
-        public List<object> FindAll(Type entityType, int currentRetries = 0)
+
+        public List<object> FindBy(Type entityType, Dictionary<string, object> parameters = null, int currentRetries = 0)
         {
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
             
@@ -788,8 +688,19 @@ namespace DBApi
 
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
-                .FromInternal(metadata)
-                .GetQuery();
+                .FromInternal(metadata);
+            
+            var currentParam = 0;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var parameter in parameters)
+                {
+                    query = currentParam == 0
+                        ? query.Where(new Eq(parameter.Key, $"@{parameter.Key}"))
+                        : query.AndWhere(new Eq(parameter.Key, $"@{parameter.Key}"));
+                    currentParam++;
+                }
+            }
 
             DataTable dt;
             using (var connection = CreateSqlConnection())
@@ -797,9 +708,9 @@ namespace DBApi
                 try
                 {
                     connection.Open();
-                    using (var stmt = new Statement(query, connection))
+                    using (var stmt = new Statement(query.GetQuery(), connection))
                     {
-                        dt = stmt.Fetch();
+                        dt = stmt.BindParameters(parameters).Fetch();
                     }
                     connection.Close();
                 }catch (SqlException)
@@ -808,7 +719,7 @@ namespace DBApi
                         connection.Close();
 
                     if (currentRetries < MaxRetries)
-                        return FindAll(entityType, ++currentRetries);
+                        return FindBy(entityType, parameters,++currentRetries);
                     throw;
                 }
             }
@@ -818,10 +729,20 @@ namespace DBApi
                 OnEndListing(metadata.EntityType, count);
                 return null;
             }
-
             var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
             OnEndListing(metadata.EntityType, count);
             return entityList;
+        }
+
+        // ReSharper disable once MemberCanBePrivate.Global
+        public List<T> FindAll<T>(int currentRetries = 0) where T : class
+        {
+            return FindBy<T>();
+        }
+        
+        public List<object> FindAll(Type entityType, int currentRetries = 0)
+        {
+            return FindBy(entityType);
         }
 
         // ReSharper disable once MemberCanBePrivate.Global
