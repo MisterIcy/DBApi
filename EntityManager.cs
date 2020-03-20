@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -706,13 +706,13 @@ namespace DBApi
 
             if (dt == null || dt.Rows.Count == 0)
             {
-                OnEndListing(metadata.EntityType, count);
+                OnEndListing(metadata.EntityType, 0);
                 return null;
             }
 
             var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata) as T).ToList();
 
-            OnEndListing(metadata.EntityType, count);
+            OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
         }
 
@@ -765,11 +765,11 @@ namespace DBApi
             
             if (dt == null || dt.Rows.Count == 0)
             {
-                OnEndListing(metadata.EntityType, count);
+                OnEndListing(metadata.EntityType, 0);
                 return null;
             }
             var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
-            OnEndListing(metadata.EntityType, count);
+            OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
         }
 
