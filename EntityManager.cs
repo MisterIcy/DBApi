@@ -476,6 +476,15 @@ namespace DBApi
 
             //Δημιούργησε το νέο object 
             var entityBase = Activator.CreateInstance(metadata.EntityType);
+            
+            //Hydrate entity should abuse the EntityCache
+            var identifierValue = row[metadata.IdentifierColumn];
+            if (CacheManager.Contains(metadata.EntityType, identifierValue))
+            {
+                OnEntityLoaded(metadata.EntityType, identifierValue);
+                return CacheManager.Get(metadata.EntityType, identifierValue);
+            }
+
             var columns = metadata.Columns.Select(c => c.Value)
                 .Where(c => c.IsCustomColumn == false)
                 .ToList();
