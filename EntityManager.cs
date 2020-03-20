@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -18,20 +18,44 @@ namespace DBApi
     public sealed class EntityManager : IEntityManager
     {
         #region Entity Manager Events
+        /// <summary>
+        /// Triggered when an enumeration begins
+        /// </summary>
         public event EventHandler<EntityEnumerationEventArgs> BeginListing;
+        /// <summary>
+        /// Triggered when an entity is loaded
+        /// </summary>
         public event EventHandler<EntityLoadedEventArgs> EntityLoaded;
+        /// <summary>
+        /// Triggered when an enumeration completes successfully
+        /// </summary>
         public event EventHandler<EntityEnumerationEventArgs> EndListing;
 
+        /// <summary>
+        /// Invokes a <see cref="BeginListing"/> event
+        /// </summary>
+        /// <param name="entityType">Type of the entity</param>
+        /// <param name="count">Number of entities to be loaded</param>
+        /// <remarks>It is wise to pass the <see cref="count"/> parameter, in order both to verify the operation
+        /// and display the enumeration's progress</remarks>
         private void OnBeginListing(Type entityType, long count)
         {
             BeginListing?.Invoke(this, new EntityEnumerationEventArgs(count, entityType));
         }
-
-        private void OnEntityLoaded(Type entityType, object identifier)
+        /// <summary>
+        /// Invokes an <see cref="EntityLoaded"/> event
+        /// </summary>
+        /// <param name="entityType">The type of the entity</param>
+        /// <param name="identifier">Optionally the identifier of the entity</param>
+        private void OnEntityLoaded(Type entityType, object identifier = null)
         {
             EntityLoaded?.Invoke(this, new EntityLoadedEventArgs(entityType, identifier));
         }
-
+        /// <summary>
+        /// Invokes an <see cref="EndListing"/> event
+        /// </summary>
+        /// <param name="entityType">The type of the entity that was enumerated</param>
+        /// <param name="count">A count of the entities in the collection</param>
         private void OnEndListing(Type entityType, long count)
         {
             EndListing?.Invoke(this, new EntityEnumerationEventArgs(count, entityType));
