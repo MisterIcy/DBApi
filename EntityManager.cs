@@ -400,6 +400,7 @@ namespace DBApi
             var metadata = GetClassMetadata(entityType);
             if (CacheManager.Contains(entityType, identifier))
             {
+                OnEntityLoaded(metadata.EntityType, identifier);
                 return CacheManager.Get(entityType, identifier);
             }
 
@@ -438,6 +439,7 @@ namespace DBApi
                 }
             }
             CacheManager.Add(entityType, entity);
+            
             return entity;
         }
 
@@ -498,7 +500,7 @@ namespace DBApi
             if (metadata.HasCustomColumns()) HydrateCustomColumns(ref entityBase, metadata);
             sw.Stop();
             //OnOperationComplete(GetOperationName($"\t ObjectHydration: "), true, sw.ElapsedTicks);
-
+            OnEntityLoaded(metadata.EntityType, 0);
             return entityBase;
         }
 
@@ -627,9 +629,8 @@ namespace DBApi
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
             
             var metadata = MetadataCache.Get<T>();
-            long count = FastCount(metadata.TableName, null);
+            long count = FastCount(metadata.TableName, parameters);
             
-
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
                 .FromInternal(metadata);
@@ -676,13 +677,8 @@ namespace DBApi
                 return null;
             }
 
-            var entityList = new List<T>();
-            foreach (DataRow row in dt.Rows)
-            {
-                entityList.Add(HydrateObject(row, metadata) as T);
-                OnEntityLoaded(metadata.EntityType, 0);
-            }
-            
+            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata) as T).ToList();
+
             OnEndListing(metadata.EntityType, count);
             return entityList;
         }
@@ -692,7 +688,7 @@ namespace DBApi
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
             
             var metadata = MetadataCache.Get(entityType);
-            long count = FastCount(metadata.TableName, null);
+            long count = FastCount(metadata.TableName, parameters);
             
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
@@ -739,12 +735,7 @@ namespace DBApi
                 OnEndListing(metadata.EntityType, count);
                 return null;
             }
-            var entityList = new List<object>();
-            foreach (DataRow row in dt.Rows)
-            {
-                entityList.Add(HydrateObject(row, metadata));
-                OnEntityLoaded(metadata.EntityType, 0);
-            }
+            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
             OnEndListing(metadata.EntityType, count);
             return entityList;
         }
