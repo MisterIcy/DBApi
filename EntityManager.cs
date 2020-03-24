@@ -283,7 +283,8 @@ namespace DBApi
 
         public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
-            return FindBy(entityType, parameters).FirstOrDefault();
+            var results = FindBy(entityType, parameters);
+            return ( results != null && results.Any()) ? results.FirstOrDefault() : null;
         }
 
         public void Delete<T>(T entityObject) where T : class
@@ -428,7 +429,7 @@ namespace DBApi
             long count = FastCount(metadata.TableName, parameters);
             
             var query = CreateQueryBuilder()
-                .SelectInternal(metadata)
+                .Select(metadata.IdentifierColumn)
                 .FromInternal(metadata);
 
             query = AddParameters(query, parameters);
@@ -463,7 +464,7 @@ namespace DBApi
                 return null;
             }
 
-            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata) as T).ToList();
+            var entityList = (from DataRow dr in dt.Rows select FindById<T>(dr[0])).ToList();
 
             OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
@@ -484,7 +485,7 @@ namespace DBApi
             long count = FastCount(metadata.TableName, parameters);
             
             var query = CreateQueryBuilder()
-                .SelectInternal(metadata)
+                .Select(metadata.IdentifierColumn)
                 .FromInternal(metadata);
 
             query = AddParameters(query, parameters);
@@ -518,7 +519,9 @@ namespace DBApi
                 OnEndListing(metadata.EntityType, 0);
                 return null;
             }
-            var entityList = (from DataRow row in dt.Rows select HydrateObject(row, metadata)).ToList();
+
+            var entityList = (from DataRow dr in dt.Rows select FindById(metadata.EntityType, dr[0])).ToList();
+
             OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
         }
@@ -867,7 +870,7 @@ namespace DBApi
         }
         private static object ConvertList(List<object> source, Type targetType)
         {
-            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (source == null) return null;
             var listType = typeof(List<>).MakeGenericType(targetType);
             var typedList = (IList) Activator.CreateInstance(listType);
             foreach (var item in source) typedList.Add(item);
