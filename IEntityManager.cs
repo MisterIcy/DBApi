@@ -11,7 +11,7 @@ namespace DBApi
         T Persist<T>(T entityObject) where T : class;
         object Persist(Type entityType, object entityObject, int currentRetries = 0);
         T Update<T>(T entityObject) where T : class;
-        object Update(Type entityType, object entityObject);
+        object Update(Type entityType, object entityObject, int currentRetries = 0);
         T FindById<T>(object identifier) where T : class;
         object FindById(Type entityType, object identifier);
         T FindOneBy<T>(Dictionary<string, object> parameters) where T : class;

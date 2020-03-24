@@ -188,6 +188,78 @@ namespace DBApi
 
             return (ObjectsNeedRehydration) ? FindById(entityType, lastId) : entityObject;
         }
+        
+        public object Update(Type entityType, object entityObject, int currentRetries = 0)
+        {
+            if (entityObject == null) throw new ArgumentNullException(nameof(entityObject));
+            if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
+
+            var metadata = MetadataCache.Get(entityType);
+            var query = CreateQueryBuilder()
+                .UpdateInternal(metadata)
+                .Where(new Eq(metadata.IdentifierColumn, "@identifier"))
+                .GetQuery();
+
+            var identifier = metadata.GetIdentifierField().GetValue(entityObject);
+            if (identifier == null || (int) identifier == -1)
+                throw new ORMException("An object needs an identifier in order to be updated");
+
+            SqlTransaction sqlTransaction = null;
+            using (var connection = CreateSqlConnection())
+            {
+                try
+                {
+                    connection.Open();
+                    sqlTransaction = connection.BeginTransaction();
+                    using (var stmt = new Statement(query, connection))
+                    {
+                        stmt.SetTransaction(sqlTransaction)
+                            .BindParameters(ClassMetadata.GetParameterDictionary(entityObject))
+                            .BindParameter("@identifier", identifier)
+                            .Execute();
+                    }
+
+                    if (metadata.HasCustomColumns())
+                    {
+                        //TODO: Optimize this into a Single Query ( <= 1000 Parameters)
+                        var customColumns = metadata.Columns.Select(c => c.Value)
+                            .Where(c => c.IsCustomColumn)
+                            .ToList();
+                        foreach (var customColumn in customColumns)
+                        {
+                            var cquery = customColumn.GetCustomColumnQuery();
+                            var parm = customColumn.GetCustomColumnParameters(entityObject);
+                            using (var stmt = new Statement(cquery, connection))
+                            {
+                                stmt.SetTransaction(sqlTransaction)
+                                    .BindParameters(parm)
+                                    .Execute();
+                            }
+                        }
+                    }
+
+                    sqlTransaction.Commit();
+                }
+                catch (SqlException ex)
+                {
+                    if (sqlTransaction != null && connection.State == ConnectionState.Open)
+                        sqlTransaction.Rollback();
+
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
+
+                    if (currentRetries < MaxRetries) return Update(entityType, entityObject, ++currentRetries);
+                    throw new ORMStatementException(query, ex.Message);
+                }
+
+                connection.Close();
+            }
+
+            if (CacheManager.Contains(entityType, identifier)) CacheManager.Remove(entityType, identifier);
+            CacheManager.Add(entityType, identifier);
+            //TODO: Check if we need to rehydrate
+            return entityObject;
+        }
         #endregion
 
         
@@ -222,13 +294,6 @@ namespace DBApi
         public void Delete(Type entityType, object entityObject)
         {
             throw new NotImplementedException();
-        }
-
-        
-
-        public object Update(Type entityType, object entityObject)
-        {
-            return Update(entityType, entityObject, 0);
         }
 
         public object FindById(Type entityType, object identifier)
@@ -283,88 +348,7 @@ namespace DBApi
             }
         }
 
-        /// <summary>
-        /// Adds Parameters to a QueryBuilder
-        /// </summary>
-        /// <param name="queryBuilder"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentNullException"></exception>
         
-
-        
-
-        
-
-        public object Update(Type entityType, object entityObject, int CurrentRetries = 0)
-        {
-            if (entityObject == null) throw new ArgumentNullException(nameof(entityObject));
-
-            var metadata = MetadataCache.Get(entityType);
-            var query = CreateQueryBuilder()
-                .UpdateInternal(metadata)
-                .Where(new Eq(metadata.IdentifierColumn, "@identifier"))
-                .GetQuery();
-
-            var identifier = metadata.GetIdentifierField().GetValue(entityObject);
-            if (identifier == null || (int) identifier == -1)
-                throw new ORMException("An object needs an identifier in order to be updated");
-
-            SqlTransaction sqlTransaction = null;
-            using (var Connection = CreateSqlConnection())
-            {
-                try
-                {
-                    Connection.Open();
-                    sqlTransaction = Connection.BeginTransaction();
-                    using (var stmt = new Statement(query, Connection))
-                    {
-                        stmt.SetTransaction(sqlTransaction)
-                            .BindParameters(ClassMetadata.GetParameterDictionary(entityObject))
-                            .BindParameter("@identifier", identifier)
-                            .Execute();
-                    }
-
-                    if (metadata.HasCustomColumns())
-                    {
-                        var customColumns = metadata.Columns.Select(c => c.Value)
-                            .Where(c => c.IsCustomColumn)
-                            .ToList();
-                        foreach (var customColumn in customColumns)
-                        {
-                            var cquery = customColumn.GetCustomColumnQuery();
-                            var parm = customColumn.GetCustomColumnParameters(entityObject);
-                            using (var stmt = new Statement(cquery, Connection))
-                            {
-                                stmt.SetTransaction(sqlTransaction)
-                                    .BindParameters(parm)
-                                    .Execute();
-                            }
-                        }
-                    }
-
-                    sqlTransaction.Commit();
-                }
-                catch (SqlException ex)
-                {
-                    if (sqlTransaction != null && Connection.State == ConnectionState.Open)
-                        sqlTransaction.Rollback();
-
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
-
-                    if (CurrentRetries < MaxRetries) return Update(entityType, entityObject, ++CurrentRetries);
-                    throw new ORMStatementException(query, ex.Message);
-                }
-
-                Connection.Close();
-            }
-
-            if (CacheManager.Contains(entityType, identifier)) CacheManager.Remove(entityType, identifier);
-            CacheManager.Add(entityType, identifier);
-            //TODO: Check if we need to rehydrate
-            return entityObject;
-        }
 
         /// <summary>
         /// Searches for an entity by its Identifier
