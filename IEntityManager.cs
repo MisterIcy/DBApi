@@ -9,7 +9,7 @@ namespace DBApi
     public interface IEntityManager
     {
         T Persist<T>(T entityObject) where T : class;
-        object Persist(Type entityType, object entityObject);
+        object Persist(Type entityType, object entityObject, int currentRetries = 0);
         T Update<T>(T entityObject) where T : class;
         object Update(Type entityType, object entityObject);
         T FindById<T>(object identifier) where T : class;
