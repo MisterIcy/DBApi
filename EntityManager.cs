@@ -480,7 +480,7 @@ namespace DBApi
             long count = FastCount(metadata.TableName, parameters);
             
             var query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
+                .SelectInternal(metadata)
                 .FromInternal(metadata);
 
             query = AddParameters(query, parameters);
@@ -515,7 +515,7 @@ namespace DBApi
                 return null;
             }
 
-            var entityList = (from DataRow dr in dt.Rows select FindById<T>(dr[0])).ToList();
+            var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata) as T).ToList();
 
             OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
