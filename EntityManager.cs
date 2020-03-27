@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using DBApi.Events;
@@ -14,8 +16,39 @@ using DBApi.Reflection;
 
 namespace DBApi
 {
+    public class EntityHydrationEventArgs : EventArgs
+    {
+        public string EntityName { get; }
+        public string EntityId { get; }
+        public long Msec { get; }
+
+        public EntityHydrationEventArgs(string entityName, string entityId, long msec = 0)
+        {
+            EntityName = entityName;
+            EntityId = entityId;
+            Msec = msec;
+        }
+    }
+
+    public class CustomColumnHydrationEventArgs : EventArgs
+    {
+        public long Msec { get; }
+        public string Table { get; }
+        public int CustomFieldId { get; }
+        public object Value { get; }
+
+        public CustomColumnHydrationEventArgs(string table, int customFieldId, object value, long msec = 0)
+        {
+            Table = table;
+            CustomFieldId = customFieldId;
+            Value = value;
+            Msec = msec;
+        }
+    }
+    
     public sealed class EntityManager : IEntityManager
     {
+        public long CacheHits { get; set; } = 0;
         #region Entity Manager Events
         /// <summary>
         /// Triggered when an enumeration begins
@@ -30,6 +63,19 @@ namespace DBApi
         /// </summary>
         public event EventHandler<EntityEnumerationEventArgs> EndListing;
 
+        public event EventHandler<EntityHydrationEventArgs> EntityHydrated;
+        public event EventHandler<CustomColumnHydrationEventArgs> CustomColumnHydrated;
+
+        private void OnEntityHydrated(object entity, long msec = 0)
+        {
+            var metadata = GetClassMetadata(entity.GetType());
+            EntityHydrated?.Invoke(this, new EntityHydrationEventArgs(metadata.EntityName, metadata.GetIdentifierField().GetValue(entity).ToString(), msec));
+        }
+
+        private void OnCustomColumnHydrated(string table, int id, object value, long msec)
+        {
+            CustomColumnHydrated?.Invoke(this, new CustomColumnHydrationEventArgs(table, id, value, msec));
+        }
         /// <summary>
         /// Invokes a <see cref="BeginListing"/> event
         /// </summary>
@@ -270,10 +316,6 @@ namespace DBApi
         }
         #endregion
 
-        
-
-        
-
         public T Update<T>(T entityObject) where T : class
         {
             return Update(typeof(T), entityObject) as T;
@@ -378,6 +420,7 @@ namespace DBApi
             if (CacheManager.Contains(entityType, identifier))
             {
                 OnEntityLoaded(metadata.EntityType, identifier);
+                CacheHits++;
                 return CacheManager.Get(entityType, identifier);
             }
 
@@ -493,7 +536,7 @@ namespace DBApi
             long count = FastCount(metadata.TableName, parameters);
             
             var query = CreateQueryBuilder()
-                .Select(metadata.IdentifierColumn)
+                .SelectInternal(metadata)
                 .FromInternal(metadata);
 
             query = AddParameters(query, parameters);
@@ -528,8 +571,8 @@ namespace DBApi
                 return null;
             }
 
-            var entityList = (from DataRow dr in dt.Rows select FindById(metadata.EntityType, dr[0])).ToList();
-
+            var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata)).ToList();
+            
             OnEndListing(metadata.EntityType, entityList.Count);
             return entityList;
         }
@@ -697,6 +740,18 @@ namespace DBApi
             //Εάν η γραμμή είναι null, θα πρέπει να επιστρέψουμε null - δεν υπάρχει συσχέτιση
             if (row == null) return null;
 
+            //Cache Abuse
+            var identifierColumn = metadata.IdentifierColumn;
+            if (row.Table.Columns.Contains(identifierColumn))
+            {
+                var identifier = row[identifierColumn];
+                if (CacheManager.Contains(metadata.EntityType, identifier))
+                {
+                    CacheHits++;
+                    return CacheManager.Get(metadata.EntityType, identifier);
+                }
+            }
+            
             //Δημιούργησε το νέο object 
             var entityBase = Activator.CreateInstance(metadata.EntityType);
             
@@ -754,6 +809,12 @@ namespace DBApi
             }
 
             if (metadata.HasCustomColumns()) HydrateCustomColumns(ref entityBase, metadata);
+
+            var entityIdentifier = metadata.GetIdentifierField().GetValue(entityBase);
+            if (!CacheManager.Contains(metadata.EntityType, entityIdentifier))
+            {
+                CacheManager.Add(metadata.EntityType, entityBase);
+            }
             OnEntityLoaded(metadata.EntityType, 0);
             return entityBase;
         }
