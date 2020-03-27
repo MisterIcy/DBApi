@@ -203,6 +203,7 @@ namespace DBApi.Reflection
 
         internal string GetCustomColumnQuery()
         {
+            
             return "IF (NOT EXISTS(Select CustomFieldValue FROM " + this.CustomFieldTable + " t" + Environment.NewLine +
                 "WHERE t.CustomFieldId = @customFieldId and t." + this.CustomFieldReference + " = @identifier))" + Environment.NewLine +
                 "BEGIN " + Environment.NewLine + 
@@ -215,31 +216,35 @@ namespace DBApi.Reflection
                 "WHERE " + this.CustomFieldReference + " = @identifier AND CustomFieldId = @customFieldId" + Environment.NewLine +
                 "END";
         }
-        internal Dictionary<string, object> GetCustomColumnParameters(object EntityObject) {
+        internal Dictionary<string, object> GetCustomColumnParameters(object entityObject) {
 
-            if (EntityObject == null)
-                throw new ArgumentNullException(nameof(EntityObject));
+            if (entityObject == null)
+                throw new ArgumentNullException(nameof(entityObject));
 
-            var mainMeta = MetadataCache.Get(EntityObject.GetType());
+            var mainMeta = MetadataCache.Get(entityObject.GetType());
 
             var parameters = new Dictionary<string, object>
             {
                 {"@customFieldId", this.CustomFieldId},
-                {"@identifier", mainMeta.GetIdentifierField().GetValue(EntityObject)}
+                {"@identifier", mainMeta.GetIdentifierField().GetValue(entityObject)}
             };
 
-            #if DEBUG
-            var temp = this.FieldInfo.GetValue(EntityObject);
-            if (temp == null)
+            var temp = this.FieldInfo.GetValue(entityObject);
+            switch (temp)
             {
-                //FIXME: Try to debug dtool's stupid behavior
-                Debug.Assert(temp == null, $"Custom Column {ColumnName} of {mainMeta.EntityName} is null");
-                temp = DBNull.Value;
+                case null:
+#if DEBUG
+                    Debug.Assert(temp == null, $"Custom Column {ColumnName} of {mainMeta.EntityName} is null");
+#endif
+                    temp = DBNull.Value;
+                    break;
+                case string s when string.IsNullOrEmpty(s):
+#if DEBUG
+                    Debug.Assert(1==1,$"Custom Column {ColumnName} of {mainMeta.EntityName} is null");
+#endif
+                    temp = DBNull.Value;
+                    break;
             }
-            #else
-
-            var temp = this.FieldInfo.GetValue(EntityObject) ?? DBNull.Value;
-            #endif
             parameters.Add("@fieldValue", temp);
 
             return parameters;

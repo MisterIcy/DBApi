@@ -220,17 +220,27 @@ namespace DBApi
                     if (metadata.HasCustomColumns())
                     {
                         //TODO: Optimize this into a Single Query ( <= 1000 Parameters)
+                        /* Εδώ το μόνο optimization που παίζει, είναι να μαζέψω όλα τα queries / parameters και να τα εκτελέσω όλα μαζί
+                           Δεδομένης της υλοποίησης IF NOT EXISTS INSERT ELSE UPDATE*/
                         var customColumns = metadata.Columns.Select(c => c.Value)
                             .Where(c => c.IsCustomColumn)
                             .ToList();
+
+                        var queries = new Dictionary<string, Dictionary<string,object>>(); 
                         foreach (var customColumn in customColumns)
                         {
-                            var cquery = customColumn.GetCustomColumnQuery();
-                            var parm = customColumn.GetCustomColumnParameters(entityObject);
-                            using (var stmt = new Statement(cquery, connection))
+                            var currentQuery = customColumn.GetCustomColumnQuery();
+                            var queryParameters = customColumn.GetCustomColumnParameters(entityObject);
+                            
+                            queries.Add(currentQuery, queryParameters);
+                        }
+
+                        foreach (var kpv in queries)
+                        {
+                            using (var stmt = new Statement(kpv.Key, connection))
                             {
                                 stmt.SetTransaction(sqlTransaction)
-                                    .BindParameters(parm)
+                                    .BindParameters(kpv.Value)
                                     .Execute();
                             }
                         }
