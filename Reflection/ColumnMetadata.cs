@@ -3,6 +3,7 @@ using System.Reflection;
 using DBApi.Attributes;
 using System.Data.SqlTypes;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace DBApi.Reflection
 {
@@ -84,6 +85,8 @@ namespace DBApi.Reflection
         /// Είναι Guid?
         /// </summary>
         public bool IsRowGuid { get; } = false;
+
+        public bool IsVersion { get; } = false;
         /// <summary>
         /// Δημιουργεί ένα νέο αντικείμενο μεταδεδομένων στήλης / πεδίου οντότητας
         /// </summary>
@@ -147,7 +150,9 @@ namespace DBApi.Reflection
             }
             //ADDED Row Guid
             this.IsRowGuid = (this.FieldInfo.GetCustomAttribute<GuidAttribute>() != null);
-            
+
+            var version = this.FieldInfo.GetCustomAttribute<VersionAttribute>();
+            IsVersion = (version != null);
         }
         private static Type GetType(ColumnType columnType)
         {
@@ -215,17 +220,26 @@ namespace DBApi.Reflection
             if (EntityObject == null)
                 throw new ArgumentNullException(nameof(EntityObject));
 
-            ClassMetadata mainMeta = MetadataCache.Get(EntityObject.GetType());
+            var mainMeta = MetadataCache.Get(EntityObject.GetType());
 
-            Dictionary<string, object> parameters = new Dictionary<string, object>
+            var parameters = new Dictionary<string, object>
             {
                 {"@customFieldId", this.CustomFieldId},
                 {"@identifier", mainMeta.GetIdentifierField().GetValue(EntityObject)}
             };
 
+            #if DEBUG
+            var temp = this.FieldInfo.GetValue(EntityObject);
+            if (temp == null)
+            {
+                //FIXME: Try to debug dtool's stupid behavior
+                Debug.Assert(temp == null, $"Custom Column {ColumnName} of {mainMeta.EntityName} is null");
+                temp = DBNull.Value;
+            }
+            #else
 
-            object temp = this.FieldInfo.GetValue(EntityObject) ?? DBNull.Value;
-
+            var temp = this.FieldInfo.GetValue(EntityObject) ?? DBNull.Value;
+            #endif
             parameters.Add("@fieldValue", temp);
 
             return parameters;

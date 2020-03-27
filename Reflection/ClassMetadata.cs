@@ -55,6 +55,14 @@ namespace DBApi.Reflection
         /// Μεταδεδομένα πεδίων / στηλών της οντότητας
         /// </summary>
         public Dictionary<string, ColumnMetadata> Columns { get; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating that this entity type supports optimistic locking
+        /// </summary>
+        public bool SupportsOptimisticLocking { get; }
+        
+        public string VersionColumn { get; }
+        
         /// <summary>
         /// Δημιουργεί ένα νέο αντικείμενο μεταδεδομένων οντότητας
         /// </summary>
@@ -109,6 +117,17 @@ namespace DBApi.Reflection
             {
                 CacheDuration = cacheAttr.Duration;
                 NoCache = cacheAttr.NoCache;
+            }
+
+            SupportsOptimisticLocking = Columns
+                .Select(c => c.Value)
+                .Any(c => c.IsVersion);
+            if (SupportsOptimisticLocking)
+            {
+                VersionColumn = Columns
+                    .Select(c => c.Value)
+                    .FirstOrDefault(c => c.IsVersion)
+                    ?.ColumnName ?? string.Empty;
             }
         }
         /// <summary>
@@ -240,6 +259,16 @@ namespace DBApi.Reflection
                 .ToList();
             return fieldColumn.Select(c => c.ColumnName)
                 .ToList();
+        }
+
+        public FieldInfo GetVersionField()
+        {
+            return GetColumnFieldInfo(VersionColumn);
+        }
+
+        public object GetVersion(object entity)
+        {
+            return GetVersionField().GetValue(entity);
         }
         
         #region Static

@@ -181,6 +181,12 @@ namespace DBApi.Attributes
             IdentifierColumn = referencedColumn;
         }
     }
+
+    [AttributeUsage(AttributeTargets.Field, Inherited = true, AllowMultiple = false)]
+    public sealed class VersionAttribute : Attribute
+    {
+        
+    }
     /// <summary>
     /// Enumeration με τους τύπους δεδομένων που μπορούμε να χρησιμοποιήσουμε στις οντότητες
     /// </summary>
