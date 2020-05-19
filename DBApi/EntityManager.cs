@@ -265,7 +265,7 @@ namespace DBApi
             if (identifier == null || (int) identifier == -1)
                 throw new ORMException("An object needs an identifier in order to be updated");
 
-            SqlTransaction sqlTransaction = null;
+            SqlTransaction sqlTransaction = null!;
             using (var connection = CreateSqlConnection())
             {
                 try
@@ -310,6 +310,7 @@ namespace DBApi
                     }
 
                     sqlTransaction.Commit();
+                    connection.Close();
                 }
                 catch (SqlException ex)
                 {
@@ -319,14 +320,15 @@ namespace DBApi
                     if (connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    if (currentRetries < MaxRetries) return Update(entityType, entityObject, ++currentRetries);
-                    throw new ORMStatementException(query, ex.Message);
+                    if (currentRetries < MaxRetries)
+                        return Update(entityType, entityObject, ++currentRetries);
+                    throw;
                 }
 
-                connection.Close();
             }
 
-            if (CacheManager.Contains(entityType, identifier)) CacheManager.Remove(entityType, identifier);
+            if (CacheManager.Contains(entityType, identifier)) 
+                CacheManager.Remove(entityType, identifier);
             CacheManager.Add(entityType, identifier);
             //TODO: Check if we need to rehydrate
             return entityObject;
