@@ -139,44 +139,57 @@ namespace DBApi
         {
             return Persist(typeof(T), entityObject) as T;
         }
-        public object Persist(Type entityType, object entityObject, int currentRetries = 0)
+        public object? Persist(Type entityType, object entityObject, int currentRetries = 0)
         {
+            // Throw an exception if the caller tries to save an empty object
             if (entityObject == null)
                 throw new ArgumentNullException(nameof(entityObject));
+            // Throw an exception if the caller tries to outsmart the retrying system
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
 
+            //Get the type's metadata
             var metadata = GetClassMetadata(entityType);
+            // Get the object's identifier
             var identifier = metadata.GetColumnFieldInfo(metadata.IdentifierColumn)
                 .GetValue(entityObject);
-
+            
+            // A valid object for saving must have an identifier equal to null or, more rarely -1
+            // In case the identifier has an integer value, greater than 0, check if the object
+            // already exists in the database (by performing a COUNT(*)) 
+            // If the object already exists in the database, just update it
             if (identifier != null && (int) identifier != -1)
                 if (FastCountStar(metadata, identifier) > 0)
                     return Update(entityType, entityObject);
 
+            // Create a new Insert Query
             var query = CreateQueryBuilder()
                 .Insert(entityType)
                 .GetQuery();
+            // Declare a variable for the object's ID 
             int lastId;
-            SqlTransaction sqlTransaction = null;
+            SqlTransaction sqlTransaction = null!;
             using (var connection = CreateSqlConnection())
             {
                 try
                 {
+                    //Open the connection to the database and begin a new transaction
                     connection.Open();
                     sqlTransaction = connection.BeginTransaction();
+                    // Execute the insert query
                     using (var stmt = new Statement(query, connection))
                     {
                         stmt.SetTransaction(sqlTransaction)
                             .BindParameters(ClassMetadata.GetParameterDictionary(entityObject))
                             .Execute();
                     }
-
+                    // If the object does not contain a GUID Column, try to find the last inserted id
                     if (!metadata.HasGuidColumn())
                     {
                         lastId = GetLastInsertId(connection, sqlTransaction);
                     }
                     else
                     {
+                        //TODO: Move this out of the persist function
                         var gQuery = CreateQueryBuilder()
                             .Select(metadata.IdentifierColumn)
                             .From(metadata.TableName)
@@ -191,10 +204,10 @@ namespace DBApi
                                 .FetchScalar();
                         }
                     }
-
+                    //Update the object with its identifier
                     metadata.GetColumnFieldInfo(metadata.IdentifierColumn)
                         .SetValue(entityObject, lastId);
-
+                    // If the object has custom columns, persist them too
                     if (metadata.HasCustomColumns())
                     {
                         var customColumns = metadata.Columns.Select(c => c.Value)
@@ -212,23 +225,25 @@ namespace DBApi
                             }
                         }
                     }
-
+                    //Commit the transaction and close the connection
                     sqlTransaction.Commit();
                     connection.Close();
                 }
                 catch (SqlException ex)
                 {
-                    if (sqlTransaction != null && connection.State == ConnectionState.Open) sqlTransaction.Rollback();
+                    // if, for any reason, the transaction has failed, roll it back
+                    if (sqlTransaction != null && connection.State == ConnectionState.Open)
+                        sqlTransaction.Rollback();
+                    //Close the connection and retry
                     if (connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    if (currentRetries < MaxRetries) return Persist(entityType, entityObject, ++currentRetries);
-
-                    throw new Exception(ex.Message, ex);
+                    if (currentRetries < MaxRetries) 
+                        return Persist(entityType, entityObject, ++currentRetries);
+                    throw;
                     //throw new ORMStatementException(Query, ex.Message);
                 }
             }
-
             return (ObjectsNeedRehydration) ? FindById(entityType, lastId) : entityObject;
         }
         
