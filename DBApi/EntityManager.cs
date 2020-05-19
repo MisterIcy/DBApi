@@ -45,7 +45,6 @@ namespace DBApi
             Msec = msec;
         }
     }
-    
     public sealed class EntityManager : IEntityManager
     {
         public long CacheHits { get; set; } = 0;
@@ -136,7 +135,7 @@ namespace DBApi
         #endregion
 
         #region Persistance (Insert & Update)
-        public T Persist<T>(T entityObject) where T : class
+        public T? Persist<T>(T entityObject) where T : class
         {
             return Persist(typeof(T), entityObject) as T;
         }
