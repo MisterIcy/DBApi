@@ -340,9 +340,10 @@ namespace DBApi
             return FindById(typeof(T), identifier) as T;
         }
 
-        public T FindOneBy<T>(Dictionary<string, object> parameters) where T : class
+        public T? FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
-            return FindBy<T>(parameters).FirstOrDefault();
+            var findings = FindBy<T>(parameters);
+            return findings.Any() ? findings.First() : null;
         }
 
         public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
