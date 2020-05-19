@@ -246,7 +246,10 @@ namespace DBApi
             }
             return (ObjectsNeedRehydration) ? FindById(entityType, lastId) : entityObject;
         }
-        
+        public T Update<T>(T entityObject) where T : class
+        {
+            return Update(typeof(T), entityObject) as T ?? throw new NullReferenceException("The Update Method returned no results. Something went terribly wrong");
+        }
         public object Update(Type entityType, object entityObject, int currentRetries = 0)
         {
             if (entityObject == null) throw new ArgumentNullException(nameof(entityObject));
@@ -330,10 +333,7 @@ namespace DBApi
         }
         #endregion
 
-        public T Update<T>(T entityObject) where T : class
-        {
-            return Update(typeof(T), entityObject) as T;
-        }
+       
 
         public T FindById<T>(object identifier) where T : class
         {
