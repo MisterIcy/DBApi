@@ -343,10 +343,10 @@ namespace DBApi
         public T? FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
             var findings = FindBy<T>(parameters);
-            return findings.Any() ? findings.First() : null;
+            return (findings != null && findings.Any()) ? findings.First() : null;
         }
 
-        public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
+        public object? FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
             var results = FindBy(entityType, parameters);
             return ( results != null && results.Any()) ? results.FirstOrDefault() : null;
@@ -393,7 +393,7 @@ namespace DBApi
         {
             return MetadataCache.Get(entityType);
         }
-
+        [Obsolete("All entities must use a Guid Attribute", false)]
         private int GetLastInsertId(SqlConnection connection, SqlTransaction? transaction = null)
         {
             if (connection == null || connection.State != ConnectionState.Open)
@@ -426,10 +426,10 @@ namespace DBApi
         public object FindById(Type entityType, object identifier, int CurrentRetries = 0)
         {
             //Kill all Null Identifiers
-            if (identifier == null)
-                return null;
+            if (identifier is null)
+                throw new ORMException("Unable to look for a null identifier");
             if ((int) identifier < 1)
-                return null;
+                throw new ORMException($"Invalid identifier supplied {identifier}");
             
             var metadata = GetClassMetadata(entityType);
             if (CacheManager.Contains(entityType, identifier))
@@ -438,7 +438,6 @@ namespace DBApi
                 CacheHits++;
                 return CacheManager.Get(entityType, identifier);
             }
-
             
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
@@ -446,27 +445,27 @@ namespace DBApi
                 .Where(new Eq($"t.{metadata.IdentifierColumn}", "@identifier"))
                 .GetQuery();
             
-            object entity;
-            using (var Connection = CreateSqlConnection())
+            object entity = null!;
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
+                    connection.Open();
                     DataRow row;
                     //IMPORTANT: HydrateObject does not open another connection to SQL, HydrateCustomColumns does though.
                     //In order to preserve resources - and connections - do close the Connection BEFORE hydrating the entity
-                    using (var stmt = new Statement(query, Connection))
+                    using (var stmt = new Statement(query, connection))
                     {
                         stmt.BindParameter("@identifier", identifier);
                         row = stmt.FetchRow();
                     }
-                    Connection.Close();
+                    connection.Close();
                     entity = HydrateObject(row, metadata);
                 }
                 catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
                     if (CurrentRetries < MaxRetries)
                         return FindById(entityType, identifier, ++CurrentRetries);
@@ -474,7 +473,6 @@ namespace DBApi
                 }
             }
             CacheManager.Add(entityType, entity);
-            
             return entity;
         }
         
@@ -498,7 +496,7 @@ namespace DBApi
                 .SelectInternal(metadata)
                 .FromInternal(metadata);
 
-            query = AddParameters(query, parameters);
+            query = AddParameters(query, parameters!);
 
             DataTable dt;
             using (var connection = CreateSqlConnection())
@@ -508,7 +506,7 @@ namespace DBApi
                     connection.Open();
                     using (var stmt = new Statement(query.GetQuery(), connection))
                     {
-                        dt = stmt.BindParameters(parameters).Fetch();
+                        dt = stmt.BindParameters(parameters!).Fetch();
                     }
                     connection.Close();
                 }catch (SqlException)
@@ -527,7 +525,7 @@ namespace DBApi
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, 0);
-                return null;
+                return new List<T>();
             }
 
             var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata) as T).ToList();
@@ -583,7 +581,7 @@ namespace DBApi
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, 0);
-                return null;
+                return new List<object>();
             }
 
             var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata)).ToList();
@@ -614,6 +612,7 @@ namespace DBApi
             return FindBy(entityType);
         }
         #endregion
+        
         #region Generic Querying
         // ReSharper disable once MemberCanBePrivate.Global
         /// <summary>
@@ -625,6 +624,7 @@ namespace DBApi
         /// <returns>A <see cref="DataTable"/> with the results or null if no results were produced</returns>
         /// <exception cref="ArgumentNullException">Thrown if the query is empty</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if the programmer is dumb enough to use a negative number of retries</exception>
+        [Obsolete("Use Statements", false)]
         public DataTable GetResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -667,6 +667,7 @@ namespace DBApi
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Obsolete("Use statements", false)]
         public DataRow GetSingleResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -710,6 +711,7 @@ namespace DBApi
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Obsolete("Obsolete, use statements", false)]
         public object GetSingleScalarResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -914,7 +916,7 @@ namespace DBApi
         /// <param name="meta"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        private static object ConvertCustomColumn(ColumnMetadata meta, object value)
+        private static object? ConvertCustomColumn(ColumnMetadata meta, object value)
         {
             if (value == null)
                 return null;
@@ -975,7 +977,7 @@ namespace DBApi
                 .Select("COUNT(*)")
                 .From(tableName);
 
-            queryBuilder = AddParameters(queryBuilder, parameters);
+            queryBuilder = AddParameters(queryBuilder, parameters!);
 
             var query = queryBuilder.GetQuery();
             using (var connection = CreateSqlConnection())
@@ -985,7 +987,7 @@ namespace DBApi
                     connection.Open();
                     using (var stmt = new Statement(query, connection))
                     {
-                        stmt.BindParameters(parameters);
+                        stmt.BindParameters(parameters!);
                         return (int) stmt.FetchScalar();
                     }
                 }
@@ -995,7 +997,7 @@ namespace DBApi
                         connection.Close();
 
                     if (currentRetries < MaxRetries)
-                        return FastCount(tableName, parameters, +currentRetries);
+                        return FastCount(tableName, parameters, ++currentRetries);
                     throw;
                 }
             }
