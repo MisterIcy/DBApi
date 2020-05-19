@@ -335,9 +335,7 @@ namespace DBApi
         }
         #endregion
 
-       
-
-        public T FindById<T>(object identifier) where T : class
+        public T? FindById<T>(object identifier) where T : class
         {
             return FindById(typeof(T), identifier) as T;
         }
