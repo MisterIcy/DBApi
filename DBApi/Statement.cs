@@ -29,7 +29,8 @@ namespace DBApi
             {
                 if (IsDirty()) return;
                 _commandTimeout = value;
-                _command.CommandTimeout = _commandTimeout;
+                if (_command != null)
+                    _command.CommandTimeout = _commandTimeout;
             }
         }
         
@@ -44,7 +45,10 @@ namespace DBApi
             if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
 
-            _command = new SqlCommand(Sql, connection) {CommandTimeout = CommandTimeout};
+            _command = new SqlCommand(Sql, connection)
+            {
+                CommandTimeout = _commandTimeout
+            };
             _command.Prepare();
         }
         /// <inheritdoc/>
