@@ -9,7 +9,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
-using DBApi.Annotations;
 using DBApi.Events;
 using DBApi.Exceptions;
 using DBApi.QueryBuilder;
@@ -46,7 +45,6 @@ namespace DBApi
             Msec = msec;
         }
     }
-    
     public sealed class EntityManager : IEntityManager
     {
         public long CacheHits { get; set; } = 0;
@@ -117,9 +115,8 @@ namespace DBApi
         ///     Number of times the EntityManager can retry the transaction before throwing an exception
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
-        [PublicAPI]
         public int MaxRetries { get; set; } = 3;
-        [PublicAPI]
+
         public bool ObjectsNeedRehydration { get; set; } = false;
         #region Constructors
         /// <summary>
@@ -142,47 +139,57 @@ namespace DBApi
         {
             return Persist(typeof(T), entityObject) as T;
         }
-        public object Persist(Type entityType, object entityObject, int currentRetries = 0)
+        public object? Persist(Type entityType, object entityObject, int currentRetries = 0)
         {
+            // Throw an exception if the caller tries to save an empty object
             if (entityObject == null)
                 throw new ArgumentNullException(nameof(entityObject));
-            
+            // Throw an exception if the caller tries to outsmart the retrying system
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
 
+            //Get the type's metadata
             var metadata = GetClassMetadata(entityType);
-            
+            // Get the object's identifier
             var identifier = metadata.GetColumnFieldInfo(metadata.IdentifierColumn)
                 .GetValue(entityObject);
-
+            
+            // A valid object for saving must have an identifier equal to null or, more rarely -1
+            // In case the identifier has an integer value, greater than 0, check if the object
+            // already exists in the database (by performing a COUNT(*)) 
+            // If the object already exists in the database, just update it
             if (identifier != null && (int) identifier != -1)
                 if (FastCountStar(metadata, identifier) > 0)
                     return Update(entityType, entityObject);
 
+            // Create a new Insert Query
             var query = CreateQueryBuilder()
                 .Insert(entityType)
                 .GetQuery();
-            
+            // Declare a variable for the object's ID 
             int lastId;
-            SqlTransaction? sqlTransaction = null;
+            SqlTransaction sqlTransaction = null!;
             using (var connection = CreateSqlConnection())
             {
                 try
                 {
+                    //Open the connection to the database and begin a new transaction
                     connection.Open();
                     sqlTransaction = connection.BeginTransaction();
+                    // Execute the insert query
                     using (var stmt = new Statement(query, connection))
                     {
                         stmt.SetTransaction(sqlTransaction)
                             .BindParameters(ClassMetadata.GetParameterDictionary(entityObject))
                             .Execute();
                     }
-
+                    // If the object does not contain a GUID Column, try to find the last inserted id
                     if (!metadata.HasGuidColumn())
                     {
                         lastId = GetLastInsertId(connection, sqlTransaction);
                     }
                     else
                     {
+                        //TODO: Move this out of the persist function
                         var gQuery = CreateQueryBuilder()
                             .Select(metadata.IdentifierColumn)
                             .From(metadata.TableName)
@@ -197,10 +204,10 @@ namespace DBApi
                                 .FetchScalar();
                         }
                     }
-
+                    //Update the object with its identifier
                     metadata.GetColumnFieldInfo(metadata.IdentifierColumn)
                         .SetValue(entityObject, lastId);
-
+                    // If the object has custom columns, persist them too
                     if (metadata.HasCustomColumns())
                     {
                         var customColumns = metadata.Columns.Select(c => c.Value)
@@ -218,26 +225,31 @@ namespace DBApi
                             }
                         }
                     }
-
+                    //Commit the transaction and close the connection
                     sqlTransaction.Commit();
                     connection.Close();
                 }
                 catch (SqlException ex)
                 {
-                    if (sqlTransaction != null && connection.State == ConnectionState.Open) sqlTransaction.Rollback();
+                    // if, for any reason, the transaction has failed, roll it back
+                    if (sqlTransaction != null && connection.State == ConnectionState.Open)
+                        sqlTransaction.Rollback();
+                    //Close the connection and retry
                     if (connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    if (currentRetries < MaxRetries) return Persist(entityType, entityObject, ++currentRetries);
-
-                    throw new Exception(ex.Message, ex);
+                    if (currentRetries < MaxRetries) 
+                        return Persist(entityType, entityObject, ++currentRetries);
+                    throw;
                     //throw new ORMStatementException(Query, ex.Message);
                 }
             }
-
             return (ObjectsNeedRehydration) ? FindById(entityType, lastId) : entityObject;
         }
-        
+        public T Update<T>(T entityObject) where T : class
+        {
+            return Update(typeof(T), entityObject) as T ?? throw new NullReferenceException("The Update Method returned no results. Something went terribly wrong");
+        }
         public object Update(Type entityType, object entityObject, int currentRetries = 0)
         {
             if (entityObject == null) throw new ArgumentNullException(nameof(entityObject));
@@ -253,7 +265,7 @@ namespace DBApi
             if (identifier == null || (int) identifier == -1)
                 throw new ORMException("An object needs an identifier in order to be updated");
 
-            SqlTransaction sqlTransaction = null;
+            SqlTransaction sqlTransaction = null!;
             using (var connection = CreateSqlConnection())
             {
                 try
@@ -298,6 +310,7 @@ namespace DBApi
                     }
 
                     sqlTransaction.Commit();
+                    connection.Close();
                 }
                 catch (SqlException ex)
                 {
@@ -307,40 +320,36 @@ namespace DBApi
                     if (connection.State == ConnectionState.Open)
                         connection.Close();
 
-                    if (currentRetries < MaxRetries) return Update(entityType, entityObject, ++currentRetries);
-                    throw new ORMStatementException(query, ex.Message);
+                    if (currentRetries < MaxRetries)
+                        return Update(entityType, entityObject, ++currentRetries);
+                    throw;
                 }
 
-                connection.Close();
             }
 
-            if (CacheManager.Contains(entityType, identifier)) CacheManager.Remove(entityType, identifier);
+            if (CacheManager.Contains(entityType, identifier)) 
+                CacheManager.Remove(entityType, identifier);
             CacheManager.Add(entityType, identifier);
             //TODO: Check if we need to rehydrate
             return entityObject;
         }
         #endregion
 
-        public T Update<T>(T entityObject) where T : class
-        {
-            return Update(typeof(T), entityObject) as T;
-        }
-
-        public T FindById<T>(object identifier) where T : class
+        public T? FindById<T>(object identifier) where T : class
         {
             return FindById(typeof(T), identifier) as T;
         }
 
         public T? FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
-            var list = FindBy<T>(parameters);
-            return (list != null && list.Any()) ? list.FirstOrDefault() : null;
+            var findings = FindBy<T>(parameters);
+            return (findings != null && findings.Any()) ? findings.First() : null;
         }
 
         public object? FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
             var results = FindBy(entityType, parameters);
-            return (results != null && results.Any()) ? results.FirstOrDefault() : null;
+            return ( results != null && results.Any()) ? results.FirstOrDefault() : null;
         }
 
         public void Delete<T>(T entityObject) where T : class
@@ -384,7 +393,7 @@ namespace DBApi
         {
             return MetadataCache.Get(entityType);
         }
-
+        [Obsolete("All entities must use a Guid Attribute", false)]
         private int GetLastInsertId(SqlConnection connection, SqlTransaction? transaction = null)
         {
             if (connection == null || connection.State != ConnectionState.Open)
@@ -417,10 +426,10 @@ namespace DBApi
         public object FindById(Type entityType, object identifier, int CurrentRetries = 0)
         {
             //Kill all Null Identifiers
-            if (identifier == null)
-                return null;
+            if (identifier is null)
+                throw new ORMException("Unable to look for a null identifier");
             if ((int) identifier < 1)
-                return null;
+                throw new ORMException($"Invalid identifier supplied {identifier}");
             
             var metadata = GetClassMetadata(entityType);
             if (CacheManager.Contains(entityType, identifier))
@@ -429,7 +438,6 @@ namespace DBApi
                 CacheHits++;
                 return CacheManager.Get(entityType, identifier);
             }
-
             
             var query = CreateQueryBuilder()
                 .SelectInternal(metadata)
@@ -437,27 +445,27 @@ namespace DBApi
                 .Where(new Eq($"t.{metadata.IdentifierColumn}", "@identifier"))
                 .GetQuery();
             
-            object entity;
-            using (var Connection = CreateSqlConnection())
+            object entity = null!;
+            using (var connection = CreateSqlConnection())
             {
                 try
                 {
-                    Connection.Open();
+                    connection.Open();
                     DataRow row;
                     //IMPORTANT: HydrateObject does not open another connection to SQL, HydrateCustomColumns does though.
                     //In order to preserve resources - and connections - do close the Connection BEFORE hydrating the entity
-                    using (var stmt = new Statement(query, Connection))
+                    using (var stmt = new Statement(query, connection))
                     {
                         stmt.BindParameter("@identifier", identifier);
                         row = stmt.FetchRow();
                     }
-                    Connection.Close();
+                    connection.Close();
                     entity = HydrateObject(row, metadata);
                 }
                 catch (SqlException)
                 {
-                    if (Connection.State == ConnectionState.Open)
-                        Connection.Close();
+                    if (connection.State == ConnectionState.Open)
+                        connection.Close();
 
                     if (CurrentRetries < MaxRetries)
                         return FindById(entityType, identifier, ++CurrentRetries);
@@ -465,7 +473,6 @@ namespace DBApi
                 }
             }
             CacheManager.Add(entityType, entity);
-            
             return entity;
         }
         
@@ -489,7 +496,7 @@ namespace DBApi
                 .SelectInternal(metadata)
                 .FromInternal(metadata);
 
-            query = AddParameters(query, parameters);
+            query = AddParameters(query, parameters!);
 
             DataTable dt;
             using (var connection = CreateSqlConnection())
@@ -499,7 +506,7 @@ namespace DBApi
                     connection.Open();
                     using (var stmt = new Statement(query.GetQuery(), connection))
                     {
-                        dt = stmt.BindParameters(parameters).Fetch();
+                        dt = stmt.BindParameters(parameters!).Fetch();
                     }
                     connection.Close();
                 }catch (SqlException)
@@ -518,7 +525,7 @@ namespace DBApi
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, 0);
-                return null;
+                return new List<T>();
             }
 
             var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata) as T).ToList();
@@ -574,7 +581,7 @@ namespace DBApi
             if (dt == null || dt.Rows.Count == 0)
             {
                 OnEndListing(metadata.EntityType, 0);
-                return null;
+                return new List<object>();
             }
 
             var entityList = (from DataRow dr in dt.Rows select HydrateObject(dr, metadata)).ToList();
@@ -605,6 +612,7 @@ namespace DBApi
             return FindBy(entityType);
         }
         #endregion
+        
         #region Generic Querying
         // ReSharper disable once MemberCanBePrivate.Global
         /// <summary>
@@ -616,6 +624,7 @@ namespace DBApi
         /// <returns>A <see cref="DataTable"/> with the results or null if no results were produced</returns>
         /// <exception cref="ArgumentNullException">Thrown if the query is empty</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if the programmer is dumb enough to use a negative number of retries</exception>
+        [Obsolete("Use Statements", false)]
         public DataTable GetResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -658,6 +667,7 @@ namespace DBApi
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Obsolete("Use statements", false)]
         public DataRow GetSingleResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -701,6 +711,7 @@ namespace DBApi
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [Obsolete("Obsolete, use statements", false)]
         public object GetSingleScalarResult(string query, Dictionary<string, object>? parameters = null, int currentRetries = 0)
         {
             if (string.IsNullOrEmpty(query))
@@ -905,7 +916,7 @@ namespace DBApi
         /// <param name="meta"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        private static object ConvertCustomColumn(ColumnMetadata meta, object value)
+        private static object? ConvertCustomColumn(ColumnMetadata meta, object value)
         {
             if (value == null)
                 return null;
@@ -966,7 +977,7 @@ namespace DBApi
                 .Select("COUNT(*)")
                 .From(tableName);
 
-            queryBuilder = AddParameters(queryBuilder, parameters);
+            queryBuilder = AddParameters(queryBuilder, parameters!);
 
             var query = queryBuilder.GetQuery();
             using (var connection = CreateSqlConnection())
@@ -976,7 +987,7 @@ namespace DBApi
                     connection.Open();
                     using (var stmt = new Statement(query, connection))
                     {
-                        stmt.BindParameters(parameters);
+                        stmt.BindParameters(parameters!);
                         return (int) stmt.FetchScalar();
                     }
                 }
@@ -986,7 +997,7 @@ namespace DBApi
                         connection.Close();
 
                     if (currentRetries < MaxRetries)
-                        return FastCount(tableName, parameters, +currentRetries);
+                        return FastCount(tableName, parameters, ++currentRetries);
                     throw;
                 }
             }

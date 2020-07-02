@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Data;
 namespace DBApi
@@ -9,10 +9,10 @@ namespace DBApi
     public interface IEntityManager
     {
         T? Persist<T>(T entityObject) where T : class;
-        object Persist(Type entityType, object entityObject, int currentRetries = 0);
+        object? Persist(Type entityType, object entityObject, int currentRetries = 0);
         T Update<T>(T entityObject) where T : class;
         object Update(Type entityType, object entityObject, int currentRetries = 0);
-        T FindById<T>(object identifier) where T : class;
+        T? FindById<T>(object identifier) where T : class;
         object FindById(Type entityType, object identifier);
         T? FindOneBy<T>(Dictionary<string, object> parameters) where T : class;
         object? FindOneBy(Type entityType, Dictionary<string, object> parameters);
