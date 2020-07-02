@@ -3,112 +3,134 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using DBApi.Annotations;
 
 namespace DBApi
 {
-    public class Statement : IStatement
+    public sealed class Statement : IStatement
     {
+        /// <summary>
+        /// The SQL Query to be performed on database
+        /// </summary>
+        [PublicAPI]
         public string Sql { get; }
-        private bool dirty = false;
+        
+        private bool _dirty;
 
-        private readonly SqlCommand command;
-        public Statement(string Query, SqlConnection connection)
+        private int _commandTimeout;
+        /// <summary>
+        /// Sets or gets a value that indicates the timeout of the command
+        /// </summary>
+        [PublicAPI]
+        public int CommandTimeout
         {
-            if (string.IsNullOrEmpty(Query))
-                throw new ArgumentNullException(nameof(Query));
+            get => _commandTimeout;
+            set
+            {
+                if (IsDirty()) return;
+                _commandTimeout = value;
+                _command.CommandTimeout = _commandTimeout;
+            }
+        }
+        
+        private readonly SqlCommand _command;
+        public Statement(string query, SqlConnection connection, int commandTimeout = 30)
+        {
+            CommandTimeout = commandTimeout;
+            if (string.IsNullOrEmpty(query))
+                throw new ArgumentNullException(nameof(query));
 
-            this.Sql = Query;
+            Sql = query;
             if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
 
-            this.command = new SqlCommand(Sql, connection);
-            this.command.Prepare();
+            _command = new SqlCommand(Sql, connection) {CommandTimeout = CommandTimeout};
+            _command.Prepare();
         }
         /// <inheritdoc/>
         public IStatement BindParameter(string name, object value)
         {
-            if (value == null)
-                value = DBNull.Value;
+            value ??= DBNull.Value;
+            
             if (value is DateTime dateTime && dateTime == DateTime.MinValue)
                 value = DBNull.Value;
 
-            this.command.Parameters.Add(new SqlParameter(name, value));
+            _command.Parameters.Add(new SqlParameter(name, value));
             return this;
         }
 
         public IStatement BindParameter(SqlParameter sqlParameter)
         {
-            this.command.Parameters.Add(sqlParameter);
+            _command.Parameters.Add(sqlParameter);
             return this;
         }
 
-        public IStatement BindParameters(Dictionary<string, object> Parameters)
+        public IStatement BindParameters(Dictionary<string, object> parameters)
         {
-            if (Parameters != null && Parameters.Count > 0)
+            if (parameters == null || parameters.Count <= 0) return this;
+            
+            foreach (var parameter in parameters)
             {
-                foreach (var Parameter in Parameters)
-                {
-                    BindParameter(Parameter.Key, Parameter.Value);
-                }
+                BindParameter(parameter.Key, parameter.Value);
             }
             return this;
         }
 
         public IStatement SetTransaction(SqlTransaction? sqlTransaction = null)
         {
-            this.command.Transaction = sqlTransaction;
+            _command.Transaction = sqlTransaction;
             return this;
         }
 
         public int Execute()
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(this.Sql);
+                throw ORMStatementException.DirtyStatement(Sql);
 
-            this.dirty = true;
-            return this.command.ExecuteNonQuery();
+            _dirty = true;
+            return _command.ExecuteNonQuery();
         }
 
         public DataTable Fetch()
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(this.Sql);
+                throw ORMStatementException.DirtyStatement(Sql);
 
             DataTable table = new DataTable();
-            using (SqlDataAdapter adapter = new SqlDataAdapter(this.command))
+            using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
             {
                 adapter.Fill(table);
             }
-            this.dirty = true;
+            _dirty = true;
             return table;
         }
 
-        public DataRow FetchRow(int RowNumber = 0)
+        public DataRow? FetchRow(int rowNumber = 0)
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(this.Sql);
+                throw ORMStatementException.DirtyStatement(Sql);
 
-            DataRow row = null;
+            DataRow? row = null;
             using (DataTable table = Fetch())
             {
-                if (table != null && table.Rows.Count > RowNumber)
-                    row = table.Rows[RowNumber];
+                if (table != null && table.Rows.Count > rowNumber)
+                    row = table.Rows[rowNumber];
             }
-            this.dirty = true;
+            _dirty = true;
             return row;
 
         }
 
-        public object FetchValue(int ColumnNumber = 0, int RowNumber = 0)
+        public object? FetchValue(int columnNumber = 0, int rowNumber = 0)
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(this.Sql);
+                throw ORMStatementException.DirtyStatement(Sql);
 
-            object value = null;
-            DataRow row = FetchRow(RowNumber);
-            if (row != null && row.ItemArray.Length > ColumnNumber)
-                value = row[ColumnNumber];
-            this.dirty = true;
+            object? value = null;
+            DataRow? row = FetchRow(rowNumber);
+            if (row != null && row.ItemArray.Length > columnNumber)
+                value = row[columnNumber];
+            _dirty = true;
             return value;
         }
         public object FetchScalar()
@@ -116,31 +138,31 @@ namespace DBApi
             if (IsDirty())
                 throw ORMStatementException.DirtyStatement(this.Sql);
 
-            this.dirty = true;
-            return this.command.ExecuteScalar();
+            _dirty = true;
+            return _command.ExecuteScalar();
         }
 
         public bool IsDirty()
         {
-            return dirty;
+            return _dirty;
         }
 
         #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+        private bool _disposedValue = false; // To detect redundant calls
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
-                    this.command.Dispose();
+                    this._command.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
                 // TODO: set large fields to null.
 
-                disposedValue = true;
+                _disposedValue = true;
             }
         }
 

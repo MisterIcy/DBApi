@@ -1,44 +1,47 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using DBApi.Annotations;
 
 namespace DBApi.Attributes
 {
     /// <summary>
-    /// States that is class is an entity
+    /// Declares that the annotated class is a Database Entity
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    public sealed class EntityAttribute : Attribute {
-    }
+    [PublicAPI]
+    public sealed class EntityAttribute : Attribute { }
 
     /// <summary>
-    /// Καθορίζει τον πίνακα της βάσης δεδομένων που είναι συσχετισμένος με την οντότητα
+    /// Adds a reference to the annotated class that shows the database table which is related to this entity
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
+    [PublicAPI]
     public sealed class TableAttribute : Attribute
     {        
-        public TableAttribute(string TableName)
+        public TableAttribute(string tableName)
         {
-            if (string.IsNullOrEmpty(TableName))
-                throw new ArgumentNullException(nameof(TableName));
-
-            this.TableName = TableName;
+            TableName = string.IsNullOrEmpty(tableName)
+                ? throw new ArgumentNullException(nameof(tableName))
+                : tableName;
         }
         /// <summary>
-        /// Όνομα πίνακα στην βάση δεδομένων
+        /// Gets a value that indicates the table that is associated to the annotated entity
         /// </summary>
-        public string TableName { get; }
+        [NotNull] public string TableName { get; }
     }
 
     /// <summary>
-    /// Επισημαίνει το πεδίο ως πρωτεύον κλειδί της οντότητας
+    /// Declares the annotated field as a Table Identifier (Primary Key)
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class IdentityAttribute : Attribute
-    {
-    }
+    [PublicAPI]
+    public sealed class IdentityAttribute : Attribute { }
     /// <summary>
-    /// Επισημαίνει το πεδίο ώς μοναδικό αναγνωριστικό (GUID) της οντότητας
+    /// Declares the annotated field as a GUID Column
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
+    [PublicAPI]
     public sealed class GuidAttribute : Attribute
     {
     }
@@ -46,32 +49,30 @@ namespace DBApi.Attributes
     /// Επισημαίνει πως το πεδίο συσχετίζεται με συγκεκριμένη στήλη του πίνακα
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
+    [PublicAPI]
     public class ColumnAttribute : Attribute
     {
-        public ColumnAttribute(string Name, ColumnType ColumnType = ColumnType.String, bool Nullable = true, bool Unique = false)
+        public ColumnAttribute(string name, ColumnType columnType = ColumnType.String, bool nullable = true, bool unique = false)
         {
-            if (string.IsNullOrEmpty(Name))
-                throw new ArgumentNullException(nameof(Name));
-
-            ColumnName = Name;
-            this.ColumnType = ColumnType;
-            this.Nullable = Nullable;
-            this.Unique = Unique;
+            ColumnName = string.IsNullOrEmpty(name) ? throw new ArgumentNullException(nameof(name)) : name;
+            ColumnType = columnType;
+            Nullable = nullable;
+            Unique = unique;
         }
         /// <summary>
-        /// Όνομα στηλης στον πίνακα
+        /// Gets a value that defines the column associated with this field
         /// </summary>
         public string ColumnName { get; }
         /// <summary>
-        /// Τύπος στήλης
+        /// Gets a value that defines the type of the column
         /// </summary>
         public ColumnType ColumnType { get; }
         /// <summary>
-        /// Δέχεται NULL τιμες;
+        /// Gets a value that defines whether the field accepts null values or not
         /// </summary>
         public bool Nullable { get; }
         /// <summary>
-        /// Είναι μοναδικό;
+        /// Gets a value that defines whether the field accepts unique values or not
         /// </summary>
         public bool Unique { get; }
     }
@@ -80,19 +81,18 @@ namespace DBApi.Attributes
     /// Επισημαίνει πως το πεδίο συσχετίζεται με "παραμετρικό πεδίο" σε πίνακα εκτός οντότητας
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
+    [PublicAPI]
     public sealed class CustomColumnAttribute : Attribute
     {
-        public CustomColumnAttribute(string TableName, string IdentifierColumn, int ColumnFieldId, ColumnType ColumnType = ColumnType.String)
+        public CustomColumnAttribute(string tableName, string identifierColumn, int columnFieldId, ColumnType columnType = ColumnType.String)
         {
-            if (string.IsNullOrEmpty(TableName))
-                throw new ArgumentNullException(nameof(TableName));
-
-            CustomTableName = TableName;
-            if (string.IsNullOrEmpty(IdentifierColumn))
-                throw new ArgumentNullException(nameof(IdentifierColumn));
-            this.IdentifierColumn = IdentifierColumn;
-            CustomFieldId = ColumnFieldId;
-            this.ColumnType = ColumnType;
+            CustomTableName = string.IsNullOrEmpty(tableName)
+                ? throw new ArgumentNullException(nameof(tableName))
+                : tableName;
+            
+            IdentifierColumn = identifierColumn;
+            CustomFieldId = columnFieldId;
+            ColumnType = columnType;
         }
         /// <summary>
         /// Ο πίνακας όπου αποθηκεύονται τα παραμετρικά
@@ -115,6 +115,7 @@ namespace DBApi.Attributes
     /// Καθορίζει την αποθήκευση αντικειμένων στην λανθάνουσα μνήμη
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
+    [PublicAPI]
     public sealed class CacheControlAttribute : Attribute
     {
         /// <summary>
@@ -125,10 +126,10 @@ namespace DBApi.Attributes
         /// True εάν δεν θα πρέπει να αποθηκεύουμε ποτέ την ονότητα στη λανθάνουσα μνήμη
         /// </summary>
         public bool NoCache { get; }
-        public CacheControlAttribute(long Duration  = 3600, bool NoCache = false)
+        public CacheControlAttribute(long duration  = 3600, bool noCache = false)
         {
-            this.Duration = Duration;
-            this.NoCache = NoCache;
+            Duration = duration;
+            NoCache = noCache;
         }
     }
     /// <summary>
@@ -146,20 +147,20 @@ namespace DBApi.Attributes
         /// </summary>
         public string IdentifierColumn { get; }
 
-        public ManyToOneAttribute(Type TargetEntity, string Identifier)
+        public ManyToOneAttribute(Type targetEntity, string identifier)
         {
-            this.TargetEntity = TargetEntity ?? throw new ArgumentNullException(nameof(TargetEntity));
+            this.TargetEntity = targetEntity ?? throw new ArgumentNullException(nameof(targetEntity));
             
-            if (string.IsNullOrEmpty(Identifier))
-                throw new ArgumentNullException(nameof(Identifier));
-            
-            IdentifierColumn = Identifier;
+            IdentifierColumn = string.IsNullOrEmpty(identifier) ?
+                throw new ArgumentNullException(nameof(identifier)) :
+                IdentifierColumn = identifier;
         }
     }
     /// <summary>
     /// Επισημαίνει πως το πεδίο έχει μια συσχέτιση ένα προς πολλά
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    [PublicAPI]
     public sealed class OneToManyAttribute : Attribute
     {
         /// <summary>
@@ -175,14 +176,14 @@ namespace DBApi.Attributes
         {
             TargetEntity = targetEntity ?? throw new ArgumentNullException(nameof(targetEntity));
 
-            if (string.IsNullOrEmpty(referencedColumn))
-                throw new ArgumentNullException(nameof(referencedColumn));
-
-            IdentifierColumn = referencedColumn;
+            IdentifierColumn = string.IsNullOrEmpty(referencedColumn)
+                ? throw new ArgumentNullException(nameof(referencedColumn))
+                : referencedColumn;
         }
     }
 
     [AttributeUsage(AttributeTargets.Field, Inherited = true, AllowMultiple = false)]
+    [PublicAPI]
     public sealed class VersionAttribute : Attribute
     {
         

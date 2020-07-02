@@ -23,5 +23,7 @@ namespace DBApi.Entities
 
         public bool Loaded { get; set; } = false;
         public bool Incomplete { get; set; } = false;
+        
+        
     }
 }

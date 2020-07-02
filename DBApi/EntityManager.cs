@@ -9,6 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
+using DBApi.Annotations;
 using DBApi.Events;
 using DBApi.Exceptions;
 using DBApi.QueryBuilder;
@@ -116,8 +117,9 @@ namespace DBApi
         ///     Number of times the EntityManager can retry the transaction before throwing an exception
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
+        [PublicAPI]
         public int MaxRetries { get; set; } = 3;
-
+        [PublicAPI]
         public bool ObjectsNeedRehydration { get; set; } = false;
         #region Constructors
         /// <summary>
@@ -136,7 +138,7 @@ namespace DBApi
         #endregion
 
         #region Persistance (Insert & Update)
-        public T Persist<T>(T entityObject) where T : class
+        public T? Persist<T>(T entityObject) where T : class
         {
             return Persist(typeof(T), entityObject) as T;
         }
@@ -144,9 +146,11 @@ namespace DBApi
         {
             if (entityObject == null)
                 throw new ArgumentNullException(nameof(entityObject));
+            
             if (currentRetries < 0) throw new ArgumentOutOfRangeException(nameof(currentRetries));
 
             var metadata = GetClassMetadata(entityType);
+            
             var identifier = metadata.GetColumnFieldInfo(metadata.IdentifierColumn)
                 .GetValue(entityObject);
 
@@ -157,8 +161,9 @@ namespace DBApi
             var query = CreateQueryBuilder()
                 .Insert(entityType)
                 .GetQuery();
+            
             int lastId;
-            SqlTransaction sqlTransaction = null;
+            SqlTransaction? sqlTransaction = null;
             using (var connection = CreateSqlConnection())
             {
                 try
@@ -326,15 +331,16 @@ namespace DBApi
             return FindById(typeof(T), identifier) as T;
         }
 
-        public T FindOneBy<T>(Dictionary<string, object> parameters) where T : class
+        public T? FindOneBy<T>(Dictionary<string, object> parameters) where T : class
         {
-            return FindBy<T>(parameters).FirstOrDefault();
+            var list = FindBy<T>(parameters);
+            return (list != null && list.Any()) ? list.FirstOrDefault() : null;
         }
 
-        public object FindOneBy(Type entityType, Dictionary<string, object> parameters)
+        public object? FindOneBy(Type entityType, Dictionary<string, object> parameters)
         {
             var results = FindBy(entityType, parameters);
-            return ( results != null && results.Any()) ? results.FirstOrDefault() : null;
+            return (results != null && results.Any()) ? results.FirstOrDefault() : null;
         }
 
         public void Delete<T>(T entityObject) where T : class

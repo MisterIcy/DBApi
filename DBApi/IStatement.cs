@@ -45,19 +45,21 @@ namespace DBApi
         /// </summary>
         /// <returns>A data table with all the results or null, if the query did not produce results</returns>
         DataTable Fetch();
+
         /// <summary>
         /// Fetches data from the database
         /// </summary>
         /// <param name="RowNumber">The row number to be fetched, if more than one rows exist in the datase</param>
         /// <returns>A single row or null if the query did not produce results</returns>
-        DataRow FetchRow(int RowNumber = 0);
+        DataRow? FetchRow(int RowNumber = 0);
+
         /// <summary>
         /// Fetches data from the database
         /// </summary>
         /// <param name="ColumnNumber">The Column number to be fetched, if more that one columns exists in the row</param>
         /// <param name="RowNumber">The row number to be fetched, if more than one rows exist in the datases</param>
         /// <returns>The value or null if the query did not produce results</returns>
-        object FetchValue(int ColumnNumber = 0, int RowNumber = 0);
+        object? FetchValue(int ColumnNumber = 0, int RowNumber = 0);
         /// <summary>
         /// Fetches data from database
         /// </summary>
