@@ -52,7 +52,7 @@ jobs:
           SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         with:
           testProject: 'OmegaTests/OmegaTests.csproj'
-          output: './lcov.info'
+          output: 'OmegaTests/lcov.info'
           outputFormat: 'lcov'
           excludes: '[program]*,[test]test.*'
       
