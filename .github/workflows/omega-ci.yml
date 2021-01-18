@@ -6,8 +6,6 @@ on:
   pull_request:
     branches: [ main, optimizing ]
 
-
-    
 jobs:
   build:
     name: 'Building Omega Project'
@@ -19,7 +17,7 @@ jobs:
           - 1433:1433
         env:
           ACCEPT_EULA: 'Y'
-          SA_PASSWORD: 'secret password'
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
           MSSQL_PID: 'Developer'
     
     steps:
@@ -34,4 +32,6 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
       - name: Test
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         run: dotnet test --no-build --verbosity normal
