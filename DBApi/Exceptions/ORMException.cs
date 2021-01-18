@@ -1,39 +1,43 @@
 ﻿using System;
 using System.Runtime.Serialization;
+using DBApi.Annotations;
 
 namespace DBApi.Exceptions
 {
-    public class ORMException : Exception
+    public class OrmException : Exception
     {
         #region Default Constructors
-        public ORMException()
+        public OrmException()
         {
         }
 
-        public ORMException(string message) : base(message)
+        public OrmException(string message) : base(message)
         {
         }
 
-        public ORMException(string message, Exception innerException) : base(message, innerException)
+        public OrmException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
-        protected ORMException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected OrmException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
         #endregion
 
     }
-    public class ORMStatementException : ORMException
+    public class OrmStatementException : OrmException
     {
+        [PublicAPI]
         public string Sql { get; }
-        public ORMStatementException(string Sql, string message) : base(message)
+        [PublicAPI]
+        public OrmStatementException(string Sql, string message) : base(message)
         {
             this.Sql = Sql;
         }
-        public static ORMStatementException DirtyStatement(string Sql)
+        [PublicAPI]
+        public static OrmStatementException DirtyStatement(string Sql)
         {
-            return new ORMStatementException(Sql, "This statement is `dirty` and cannot be executed again");
+            return new OrmStatementException(Sql, "This statement is `dirty` and cannot be executed again");
         }
     }
 }

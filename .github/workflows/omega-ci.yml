@@ -1,0 +1,26 @@
+﻿name: 'Omega Continuous Integration'
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - optimizing
+      - releases/*
+
+jobs:
+  build:
+    runs-on: ${{matrix.os}}
+    strategy: 
+      fail-fast: false
+      matrix:
+        os: ['windows-latest', 'ubuntu-latest']
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Setup .NET'
+        uses: actions/setup-dotnet@v1
+        with: 
+          dotnet-version: '3.0'
+      - name: 'Build Project'
+        run: dotnet build DBApi
+      

@@ -89,7 +89,7 @@ namespace DBApi
         public int Execute()
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(Sql);
+                throw OrmStatementException.DirtyStatement(Sql);
 
             _dirty = true;
             return _command.ExecuteNonQuery();
@@ -98,7 +98,7 @@ namespace DBApi
         public DataTable Fetch()
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(Sql);
+                throw OrmStatementException.DirtyStatement(Sql);
 
             DataTable table = new DataTable();
             using (SqlDataAdapter adapter = new SqlDataAdapter(_command))
@@ -112,7 +112,7 @@ namespace DBApi
         public DataRow? FetchRow(int rowNumber = 0)
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(Sql);
+                throw OrmStatementException.DirtyStatement(Sql);
 
             DataRow? row = null;
             using (DataTable table = Fetch())
@@ -128,7 +128,7 @@ namespace DBApi
         public object? FetchValue(int columnNumber = 0, int rowNumber = 0)
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(Sql);
+                throw OrmStatementException.DirtyStatement(Sql);
 
             object? value = null;
             DataRow? row = FetchRow(rowNumber);
@@ -140,7 +140,7 @@ namespace DBApi
         public object FetchScalar()
         {
             if (IsDirty())
-                throw ORMStatementException.DirtyStatement(this.Sql);
+                throw OrmStatementException.DirtyStatement(this.Sql);
 
             _dirty = true;
             return _command.ExecuteScalar();
