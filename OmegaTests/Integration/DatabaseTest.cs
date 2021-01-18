@@ -23,9 +23,11 @@ namespace OmegaTests.Integration
         public void CreateNewDatabase()
         {;
             using var connection = new SqlConnection(GetConnectionString());
+            connection.Open();
             var expression = new CreateDatabase(TestDbName);
             using var statement = new Statement(expression.ToString(), connection);
             var result = statement.Execute();
+            connection.Close();
             Assert.Equal(-1, result);
         }
 
