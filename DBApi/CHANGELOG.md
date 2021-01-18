@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+ - Added GitHub Workflow for Continuous Integration
+ - Added `CREATE DATABASE` expression
+
 ### Changed
  - Moved all attributes from [Attributes.cs](Attributes/Attributes.cs) to respective files
 
