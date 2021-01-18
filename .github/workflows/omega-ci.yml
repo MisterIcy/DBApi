@@ -18,9 +18,9 @@ jobs:
         ports:
           - 1433:1433
         env:
-          - ACCEPT_EULA: 'Y'
-          - SA_PASSWORD: 'secret password'
-          - MSSQL_PID: 'Developer'
+          ACCEPT_EULA: 'Y'
+          SA_PASSWORD: 'secret password'
+          MSSQL_PID: 'Developer'
     
     steps:
       - name: 'Checkout Project'
