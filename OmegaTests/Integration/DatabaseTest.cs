@@ -29,7 +29,7 @@ namespace OmegaTests.Integration
             var result = statement.Execute();
             Assert.Equal(-1, result);
             using var dropStatement = new Statement(new DropDatabase(TestDbName).ToString(), connection );
-            var dropResult = statement.Execute();
+            var dropResult = dropStatement.Execute();
             Assert.Equal(-1, dropResult);
             connection.Close();
         }
