@@ -47,7 +47,7 @@ jobs:
         run: dotnet test --no-build --verbosity normal
 
       - name: coverlet
-        uses: b3b00/coverlet-action@1.1.0
+        uses: MisterIcy/coverlet-action
         env:
           SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         with:
