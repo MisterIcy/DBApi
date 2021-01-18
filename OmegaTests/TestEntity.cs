@@ -8,6 +8,7 @@
 // <author>Alexandros Koutroulis</author>
 // <date>2021-01-18</date>
 
+using DBApi.Annotations;
 using DBApi.Attributes;
 
 namespace OmegaTests
@@ -16,8 +17,15 @@ namespace OmegaTests
     [Table("TestEntity")]
     public class TestEntity
     {
-        [Column("Identifier", ColumnType.Int32, false, true)]
+        [Column("TestEntityIdentifier", ColumnType.Int32, false, true)]
         [Identity]
-        private int identifier;
+        private int _identifier;
+        
+        [PublicAPI]
+        public int Identifier
+        {
+            get => _identifier;
+            set => _identifier = value;
+        }
     }
 }
