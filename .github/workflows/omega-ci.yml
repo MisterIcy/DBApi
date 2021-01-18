@@ -52,9 +52,8 @@ jobs:
           SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         with:
           testProject: 'OmegaTests/OmegaTests.csproj'
-          output: 'OmegaTests/lcov.info'
+          output: 'lcov.info'
           outputFormat: 'lcov'
-          excludes: '[program]*,[test]test.*'
       
       - name: coveralls
         uses: coverallsapp/github-action@v1.1.1
