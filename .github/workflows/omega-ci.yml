@@ -6,12 +6,24 @@ on:
   pull_request:
     branches: [ main, optimizing ]
 
+services:
+  mssql:
+    image: microsoft-mssql-server
+    ports:
+      - 1433:1433
+    evn:
+      - ACCEPT_EULA: 'Y'
+      - SA_PASSWORD: 'secret password'
+      - MSSQL_PID: 'Developer'
+    
 jobs:
   build:
+    name: 'Building Omega Project'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup .NET
+      - name: 'Checkout Project'
+        uses: actions/checkout@v2
+      - name: 'Setup .NET'
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: 3.0.x
