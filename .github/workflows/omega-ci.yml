@@ -48,6 +48,8 @@ jobs:
 
       - name: coverlet
         uses: b3b00/coverlet-action@1.1.0
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         with:
           testProject: 'OmegaTests/OmegaTests.csproj'
           output: 'lcov.info'
