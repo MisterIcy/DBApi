@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: 'Building Omega Project'
+    name: 'Build / Test'
     runs-on: ubuntu-latest
     services:
       mssql:
@@ -37,9 +37,25 @@ jobs:
         
       - name: Restore dependencies
         run: dotnet restore
+        
       - name: Build
         run: dotnet build --no-restore
+        
       - name: Test
         env:
           SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         run: dotnet test --no-build --verbosity normal
+
+      - name: coverlet
+        uses: b3b00/coverlet-action@1.1.0
+        with:
+          testProject: 'OmegaTests/OmegaTests.csproj'
+          output: 'lcov.info'
+          outputFormat: 'lcov'
+          excludes: '[program]*,[test]test.*'
+      
+      - name: coveralls
+        uses: coverallsapp/github-action@v1.1.1
+        with:
+          github-token: ${{secrets.COVERALLS_TOKEN }}
+          path-to-lcov: ${{steps.coverlet.outputs.coverageFile}}
