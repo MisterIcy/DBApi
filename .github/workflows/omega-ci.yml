@@ -31,7 +31,9 @@ jobs:
           dotnet-version: 3.0.x
           
       - name: Create Database
-        run: sqlcmd -S 127.0.0.1 -U sa -P ${{ secrets.MSSQL_SA_PASSWORD }} -Q"CREATE DATABASE OmegaUnitTests"
+        env: 
+          MSSQL_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        run: sqlcmd -S . -U sa -P ${MSSQL_PASSWORD} -Q"CREATE DATABASE OmegaUnitTests"
         
       - name: Restore dependencies
         run: dotnet restore
