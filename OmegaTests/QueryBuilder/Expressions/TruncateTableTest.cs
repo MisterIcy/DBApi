@@ -1,4 +1,4 @@
-﻿// <copyright file="DropDatabaseTest.cs">
+﻿// <copyright file="TruncateTableTest.cs">
 // Copyright 2020 Alexandros Koutroulis <icyd3mon@gmail.com>
 // This file is part of OmegaTests
 // OmegaTests is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -14,21 +14,21 @@ using Xunit;
 
 namespace OmegaTests.QueryBuilder.Expressions
 {
-    public class DropDatabaseTest
+    public class TruncateTableTest
     {
         [Fact]
-        public void TestDropDatabaseExpression()
+        public void TestTruncateTable()
         {
-            var expression = new DropDatabase("TestDatabase");
-            Assert.Equal("DROP DATABASE TestDatabase", expression.ToString());
+            var expression = new TruncateTable("TestTable");
+            Assert.Equal("TRUNCATE TABLE TestTable", expression.ToString());
         }
 
         [Fact]
-        public void TestDropDatabaseWithOutDbName()
+        public void TestTruncateTableWithNoName()
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                var expression = new DropDatabase(string.Empty);
+                var expression = new TruncateTable(string.Empty);
             });
         }
     }
