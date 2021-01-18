@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mssql:
-        image: microsoft-mssql-server
+        image: mcr.microsoft.com/mssql/server
         ports:
           - 1433:1433
         env:
