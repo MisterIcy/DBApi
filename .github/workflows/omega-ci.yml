@@ -31,7 +31,7 @@ jobs:
       - name: Create Database
         env:
           SA_PASSWORD: ${{ secrets.MYSQL_SA_PASSWORD }}
-        run: sqlcmd -U sa -P ${{ secrets.MYSQL_SA_PASSWORD }} -Q "CREATE DATABASE OmegaUnitTests"
+        run: sqlcmd -U sa -P ${{ secrets.MYSQL_SA_PASSWORD }} -Q"CREATE DATABASE OmegaUnitTests"
         
       - name: Restore dependencies
         run: dotnet restore
