@@ -6,20 +6,22 @@ on:
   pull_request:
     branches: [ main, optimizing ]
 
-services:
-  mssql:
-    image: microsoft-mssql-server
-    ports:
-      - 1433:1433
-    evn:
-      - ACCEPT_EULA: 'Y'
-      - SA_PASSWORD: 'secret password'
-      - MSSQL_PID: 'Developer'
+
     
 jobs:
   build:
     name: 'Building Omega Project'
     runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: microsoft-mssql-server
+        ports:
+          - 1433:1433
+        evn:
+          - ACCEPT_EULA: 'Y'
+          - SA_PASSWORD: 'secret password'
+          - MSSQL_PID: 'Developer'
+    
     steps:
       - name: 'Checkout Project'
         uses: actions/checkout@v2
