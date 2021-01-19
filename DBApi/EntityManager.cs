@@ -263,7 +263,7 @@ namespace DBApi
 
             var identifier = metadata.GetIdentifierField().GetValue(entityObject);
             if (identifier == null || (int) identifier == -1)
-                throw new ORMException("An object needs an identifier in order to be updated");
+                throw new OrmException("An object needs an identifier in order to be updated");
 
             SqlTransaction sqlTransaction = null!;
             using (var connection = CreateSqlConnection())
@@ -427,9 +427,9 @@ namespace DBApi
         {
             //Kill all Null Identifiers
             if (identifier is null)
-                throw new ORMException("Unable to look for a null identifier");
+                throw new OrmException("Unable to look for a null identifier");
             if ((int) identifier < 1)
-                throw new ORMException($"Invalid identifier supplied {identifier}");
+                throw new OrmException($"Invalid identifier supplied {identifier}");
             
             var metadata = GetClassMetadata(entityType);
             if (CacheManager.Contains(entityType, identifier))

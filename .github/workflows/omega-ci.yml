@@ -1,0 +1,76 @@
+﻿name: Build DBApi
+
+on:
+  push:
+    branches: [ main, optimizing ]
+  pull_request:
+    branches: [ main, optimizing ]
+
+jobs:
+  build:
+    name: 'Build / Test'
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server
+        ports:
+          - 1433:1433
+        env:
+          ACCEPT_EULA: 'Y'
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+          MSSQL_PID: 'Developer'
+          MSSQL_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        options: --health-cmd="/opt/mssql-tools/bin/sqlcmd -S . -U sa -P ${MSSQL_PASSWORD} -Q \"SELECT 1\" || exit 1" --health-interval=10s --health-timeout=3s --health-retries=10 --health-start-period=10s
+    
+    steps:        
+      - name: 'Checkout Project'
+        uses: actions/checkout@v2
+        with: 
+          fetch-depth: 0
+        
+      - name: 'Setup .NET'
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 3.0.x
+          
+      - name: Create Database
+        env: 
+          MSSQL_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        run: sqlcmd -S . -U sa -P ${MSSQL_PASSWORD} -Q"CREATE DATABASE OmegaUnitTests"
+        
+      - name: Init Tables
+        env:
+          MSSQL_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        run: sqlcmd -S . -U sa -P ${MSSQL_PASSWORD} -i data/db-init.sql
+        
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build
+        run: dotnet build --no-restore
+        
+      - name: Test
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        run: dotnet test --no-build --verbosity normal
+
+      - name: coverlet
+        uses: b3b00/coverlet-action@1.1.0
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        with:
+          testProject: 'OmegaTests/OmegaTests.csproj'
+          output: 'lcov.info'
+          outputFormat: 'lcov'
+      
+      - name: coveralls
+        uses: coverallsapp/github-action@v1.1.1
+        with:
+          github-token:  ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: 'OmegaTests/lcov.info'
+          
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

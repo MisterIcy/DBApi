@@ -21,6 +21,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+
 // ReSharper disable InheritdocConsiderUsage
 
 #pragma warning disable 1591
@@ -45,6 +47,7 @@ namespace DBApi.Annotations
   ///   var s = p.ToString(); // Warning: Possible 'System.NullReferenceException'
   /// }
   /// </code></example>
+  [ExcludeFromCodeCoverage]
   [AttributeUsage(
     AttributeTargets.Method | AttributeTargets.Parameter | AttributeTargets.Property |
     AttributeTargets.Delegate | AttributeTargets.Field | AttributeTargets.Event |
@@ -63,6 +66,7 @@ namespace DBApi.Annotations
     AttributeTargets.Method | AttributeTargets.Parameter | AttributeTargets.Property |
     AttributeTargets.Delegate | AttributeTargets.Field | AttributeTargets.Event |
     AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.GenericParameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class NotNullAttribute : Attribute { }
 
   /// <summary>
@@ -82,6 +86,7 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Method | AttributeTargets.Parameter | AttributeTargets.Property |
     AttributeTargets.Delegate | AttributeTargets.Field)]
+  [ExcludeFromCodeCoverage]
   public sealed class ItemNotNullAttribute : Attribute { }
 
   /// <summary>
@@ -102,6 +107,7 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Method | AttributeTargets.Parameter | AttributeTargets.Property |
     AttributeTargets.Delegate | AttributeTargets.Field)]
+  [ExcludeFromCodeCoverage]
   public sealed class ItemCanBeNullAttribute : Attribute { }
 
   /// <summary>
@@ -120,11 +126,13 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Constructor | AttributeTargets.Method |
     AttributeTargets.Property | AttributeTargets.Delegate)]
+  [ExcludeFromCodeCoverage]
   public sealed class StringFormatMethodAttribute : Attribute
   {
     /// <param name="formatParameterName">
     /// Specifies which parameter of an annotated method should be treated as the format string
     /// </param>
+    
     public StringFormatMethodAttribute([NotNull] string formatParameterName)
     {
       FormatParameterName = formatParameterName;
@@ -163,6 +171,7 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field,
     AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class ValueProviderAttribute : Attribute
   {
     public ValueProviderAttribute([NotNull] string name)
@@ -189,6 +198,7 @@ namespace DBApi.Annotations
     AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property |
     AttributeTargets.Method | AttributeTargets.Delegate,
     AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class ValueRangeAttribute : Attribute
   {
     public object From { get; }
@@ -230,6 +240,7 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property |
     AttributeTargets.Method | AttributeTargets.Delegate)]
+  [ExcludeFromCodeCoverage]
   public sealed class NonNegativeValueAttribute : Attribute { }
 
   /// <summary>
@@ -244,6 +255,7 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class InvokerParameterNameAttribute : Attribute { }
 
   /// <summary>
@@ -285,6 +297,7 @@ namespace DBApi.Annotations
   /// </list>
   /// </example>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class NotifyPropertyChangedInvocatorAttribute : Attribute
   {
     public NotifyPropertyChangedInvocatorAttribute() { }
@@ -341,6 +354,7 @@ namespace DBApi.Annotations
   /// </code></item>
   /// </list></examples>
   [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class ContractAnnotationAttribute : Attribute
   {
     public ContractAnnotationAttribute([NotNull] string contract)
@@ -367,6 +381,7 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.All)]
+  [ExcludeFromCodeCoverage]
   public sealed class LocalizationRequiredAttribute : Attribute
   {
     public LocalizationRequiredAttribute() : this(true) { }
@@ -400,6 +415,7 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Interface | AttributeTargets.Class | AttributeTargets.Struct)]
+  [ExcludeFromCodeCoverage]
   public sealed class CannotApplyEqualityOperatorAttribute : Attribute { }
 
   /// <summary>
@@ -415,6 +431,7 @@ namespace DBApi.Annotations
   /// </code></example>
   [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
   [BaseTypeRequired(typeof(Attribute))]
+  [ExcludeFromCodeCoverage]
   public sealed class BaseTypeRequiredAttribute : Attribute
   {
     public BaseTypeRequiredAttribute([NotNull] Type baseType)
@@ -430,6 +447,7 @@ namespace DBApi.Annotations
   /// so this symbol will not be reported as unused (as well as by other usage inspections).
   /// </summary>
   [AttributeUsage(AttributeTargets.All)]
+  [ExcludeFromCodeCoverage]
   public sealed class UsedImplicitlyAttribute : Attribute
   {
     public UsedImplicitlyAttribute()
@@ -459,6 +477,7 @@ namespace DBApi.Annotations
   /// is used implicitly.
   /// </summary>
   [AttributeUsage(AttributeTargets.Class | AttributeTargets.GenericParameter | AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class MeansImplicitUseAttribute : Attribute
   {
     public MeansImplicitUseAttribute()
@@ -486,6 +505,7 @@ namespace DBApi.Annotations
   /// with <see cref="MeansImplicitUseAttribute"/> or <see cref="UsedImplicitlyAttribute"/>.
   /// </summary>
   [Flags]
+  
   public enum ImplicitUseKindFlags
   {
     Default = Access | Assign | InstantiatedWithFixedConstructorSignature,
@@ -525,6 +545,7 @@ namespace DBApi.Annotations
   /// </summary>
   [MeansImplicitUse(ImplicitUseTargetFlags.WithMembers)]
   [AttributeUsage(AttributeTargets.All, Inherited = false)]
+  [ExcludeFromCodeCoverage]
   public sealed class PublicAPIAttribute : Attribute
   {
     public PublicAPIAttribute() { }
@@ -543,6 +564,7 @@ namespace DBApi.Annotations
   /// If the parameter is an enumerable, indicates that it is enumerated while the method is executed.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class InstantHandleAttribute : Attribute { }
 
   /// <summary>
@@ -557,6 +579,7 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class PureAttribute : Attribute { }
 
   /// <summary>
@@ -571,6 +594,7 @@ namespace DBApi.Annotations
   /// <code>[MustUseReturnValue("Use the return value to...")]</code>.
   /// </remarks>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class MustUseReturnValueAttribute : Attribute
   {
     public MustUseReturnValueAttribute() { }
@@ -601,6 +625,7 @@ namespace DBApi.Annotations
   [AttributeUsage(
     AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter | AttributeTargets.Method |
     AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Struct | AttributeTargets.GenericParameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class ProvidesContextAttribute : Attribute { }
 
   /// <summary>
@@ -608,6 +633,7 @@ namespace DBApi.Annotations
   /// Path can be relative or absolute, starting from web root (~).
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class PathReferenceAttribute : Attribute
   {
     public PathReferenceAttribute() { }
@@ -644,6 +670,7 @@ namespace DBApi.Annotations
   /// </code>
   /// </example>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class SourceTemplateAttribute : Attribute { }
 
   /// <summary>
@@ -675,6 +702,7 @@ namespace DBApi.Annotations
   /// </code>
   /// </example>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class MacroAttribute : Attribute
   {
     /// <summary>
@@ -701,6 +729,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcAreaMasterLocationFormatAttribute : Attribute
   {
     public AspMvcAreaMasterLocationFormatAttribute([NotNull] string format)
@@ -712,6 +741,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcAreaPartialViewLocationFormatAttribute : Attribute
   {
     public AspMvcAreaPartialViewLocationFormatAttribute([NotNull] string format)
@@ -723,6 +753,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcAreaViewLocationFormatAttribute : Attribute
   {
     public AspMvcAreaViewLocationFormatAttribute([NotNull] string format)
@@ -734,6 +765,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcMasterLocationFormatAttribute : Attribute
   {
     public AspMvcMasterLocationFormatAttribute([NotNull] string format)
@@ -745,6 +777,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcPartialViewLocationFormatAttribute : Attribute
   {
     public AspMvcPartialViewLocationFormatAttribute([NotNull] string format)
@@ -756,6 +789,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcViewLocationFormatAttribute : Attribute
   {
     public AspMvcViewLocationFormatAttribute([NotNull] string format)
@@ -773,6 +807,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.ChildActionExtensions.RenderAction(HtmlHelper, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcActionAttribute : Attribute
   {
     public AspMvcActionAttribute() { }
@@ -791,6 +826,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.ChildActionExtensions.RenderAction(HtmlHelper, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcAreaAttribute : Attribute
   {
     public AspMvcAreaAttribute() { }
@@ -810,6 +846,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.ChildActionExtensions.RenderAction(HtmlHelper, String, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcControllerAttribute : Attribute
   {
     public AspMvcControllerAttribute() { }
@@ -827,6 +864,7 @@ namespace DBApi.Annotations
   /// for custom wrappers similar to <c>System.Web.Mvc.Controller.View(String, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcMasterAttribute : Attribute { }
 
   /// <summary>
@@ -834,6 +872,7 @@ namespace DBApi.Annotations
   /// for custom wrappers similar to <c>System.Web.Mvc.Controller.View(String, Object)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcModelTypeAttribute : Attribute { }
 
   /// <summary>
@@ -843,12 +882,14 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.RenderPartialExtensions.RenderPartial(HtmlHelper, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcPartialViewAttribute : Attribute { }
 
   /// <summary>
   /// ASP.NET MVC attribute. Allows disabling inspections for MVC views within a class or a method.
   /// </summary>
   [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcSuppressViewErrorAttribute : Attribute { }
 
   /// <summary>
@@ -857,6 +898,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.DisplayExtensions.DisplayForModel(HtmlHelper, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcDisplayTemplateAttribute : Attribute { }
 
   /// <summary>
@@ -865,6 +907,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Html.EditorExtensions.EditorForModel(HtmlHelper, String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcEditorTemplateAttribute : Attribute { }
 
   /// <summary>
@@ -873,6 +916,7 @@ namespace DBApi.Annotations
   /// <c>System.ComponentModel.DataAnnotations.UIHintAttribute(System.String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcTemplateAttribute : Attribute { }
 
   /// <summary>
@@ -882,6 +926,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.Mvc.Controller.View(Object)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcViewAttribute : Attribute { }
 
   /// <summary>
@@ -889,6 +934,7 @@ namespace DBApi.Annotations
   /// is an MVC view component name.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcViewComponentAttribute : Attribute { }
 
   /// <summary>
@@ -896,6 +942,7 @@ namespace DBApi.Annotations
   /// is an MVC view component view. If applied to a method, the MVC view component view name is default.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcViewComponentViewAttribute : Attribute { }
 
   /// <summary>
@@ -910,9 +957,11 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMvcActionSelectorAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field)]
+  [ExcludeFromCodeCoverage]
   public sealed class HtmlElementAttributesAttribute : Attribute
   {
     public HtmlElementAttributesAttribute() { }
@@ -926,6 +975,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class HtmlAttributeValueAttribute : Attribute
   {
     public HtmlAttributeValueAttribute([NotNull] string name)
@@ -942,6 +992,7 @@ namespace DBApi.Annotations
   /// <c>System.Web.WebPages.WebPageBase.RenderSection(String)</c>.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorSectionAttribute : Attribute { }
 
   /// <summary>
@@ -972,6 +1023,7 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class CollectionAccessAttribute : Attribute
   {
     public CollectionAccessAttribute(CollectionAccessType collectionAccessType)
@@ -1005,6 +1057,7 @@ namespace DBApi.Annotations
   /// <see cref="AssertionConditionAttribute"/> attribute.
   /// </summary>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class AssertionMethodAttribute : Attribute { }
 
   /// <summary>
@@ -1013,6 +1066,7 @@ namespace DBApi.Annotations
   /// the attribute is the assertion type.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class AssertionConditionAttribute : Attribute
   {
     public AssertionConditionAttribute(AssertionConditionType conditionType)
@@ -1045,6 +1099,7 @@ namespace DBApi.Annotations
   /// </summary>
   [Obsolete("Use [ContractAnnotation('=> halt')] instead")]
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class TerminatesProgramAttribute : Attribute { }
 
   /// <summary>
@@ -1053,6 +1108,7 @@ namespace DBApi.Annotations
   /// of delegate type by analyzing LINQ method chains.
   /// </summary>
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class LinqTunnelAttribute : Attribute { }
 
   /// <summary>
@@ -1072,12 +1128,14 @@ namespace DBApi.Annotations
   /// }
   /// </code></example>
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class NoEnumerationAttribute : Attribute { }
 
   /// <summary>
   /// Indicates that the marked parameter is a regular expression pattern.
   /// </summary>
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class RegexPatternAttribute : Attribute { }
 
   /// <summary>
@@ -1088,6 +1146,7 @@ namespace DBApi.Annotations
   /// </remarks>
   [AttributeUsage(
     AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Struct | AttributeTargets.Enum)]
+  [ExcludeFromCodeCoverage]
   public sealed class NoReorderAttribute : Attribute { }
 
   /// <summary>
@@ -1095,6 +1154,7 @@ namespace DBApi.Annotations
   /// as <c>ItemsControl</c>-derived type, to enable inner items <c>DataContext</c> type resolve.
   /// </summary>
   [AttributeUsage(AttributeTargets.Class)]
+  [ExcludeFromCodeCoverage]
   public sealed class XamlItemsControlAttribute : Attribute { }
 
   /// <summary>
@@ -1107,6 +1167,7 @@ namespace DBApi.Annotations
   /// marked with the <see cref="XamlItemsControlAttribute"/> attribute.
   /// </remarks>
   [AttributeUsage(AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class XamlItemBindingOfItemsControlAttribute : Attribute { }
 
   /// <summary>
@@ -1119,9 +1180,11 @@ namespace DBApi.Annotations
   /// marked with the <see cref="XamlItemsControlAttribute"/> attribute.
   /// </remarks>
   [AttributeUsage(AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class XamlItemStyleOfItemsControlAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspChildControlTypeAttribute : Attribute
   {
     public AspChildControlTypeAttribute([NotNull] string tagName, [NotNull] Type controlType)
@@ -1136,15 +1199,19 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspDataFieldAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspDataFieldsAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspMethodPropertyAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspRequiredAttributeAttribute : Attribute
   {
     public AspRequiredAttributeAttribute([NotNull] string attribute)
@@ -1156,6 +1223,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class AspTypePropertyAttribute : Attribute
   {
     public bool CreateConstructorReferences { get; }
@@ -1167,6 +1235,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorImportNamespaceAttribute : Attribute
   {
     public RazorImportNamespaceAttribute([NotNull] string name)
@@ -1178,6 +1247,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorInjectionAttribute : Attribute
   {
     public RazorInjectionAttribute([NotNull] string type, [NotNull] string fieldName)
@@ -1192,6 +1262,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorDirectiveAttribute : Attribute
   {
     public RazorDirectiveAttribute([NotNull] string directive)
@@ -1203,6 +1274,7 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorPageBaseTypeAttribute : Attribute
   {
       public RazorPageBaseTypeAttribute([NotNull] string baseType)
@@ -1220,17 +1292,22 @@ namespace DBApi.Annotations
   }
 
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorHelperCommonAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Property)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorLayoutAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorWriteLiteralMethodAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Method)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorWriteMethodAttribute : Attribute { }
 
   [AttributeUsage(AttributeTargets.Parameter)]
+  [ExcludeFromCodeCoverage]
   public sealed class RazorWriteMethodParameterAttribute : Attribute { }
 }
