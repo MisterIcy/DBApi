@@ -45,5 +45,37 @@ namespace OmegaTests.Integration
             Assert.NotNull(category);
             Assert.Equal(1, category.CategoryId);
         }
+
+        [Fact]
+        public void TestEntityManagerCreationWithNoConnectionString()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                var entityManager = new EntityManager(string.Empty);
+            });
+        }
+
+        [Fact]
+        public void TestEntityManagerPersistenceWithNoObject()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                var em = new EntityManager(GetConnectionString());
+                Category category = null;
+                var test = em.Persist<Category>(category);
+            });
+        }
+
+        [Fact]
+        public void TestEntityManagerPersistenceWithNoConnectionRetries()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                var em = new EntityManager(GetConnectionString());
+                Category category = new Category();
+                category.Title = "Outsmart Category";
+                var test = em.Persist(typeof(Category), category, -1);
+            });
+        }
     }
 }
