@@ -30,7 +30,7 @@ namespace OmegaTests.Integration
             var category = new Category();
             category.Title = "Unit Test Generated Category";
 
-            entityManager.Persist<Category>(category);
+            category = entityManager.Persist<Category>(category);
             
             Assert.NotNull(category);
             Assert.IsType<int>(category.CategoryId);
