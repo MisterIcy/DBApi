@@ -1,4 +1,4 @@
-﻿name: Omega CI
+﻿name: Build DBApi
 
 on:
   push:
@@ -22,9 +22,12 @@ jobs:
           MSSQL_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         options: --health-cmd="/opt/mssql-tools/bin/sqlcmd -S . -U sa -P ${MSSQL_PASSWORD} -Q \"SELECT 1\" || exit 1" --health-interval=10s --health-timeout=3s --health-retries=10 --health-start-period=10s
     
-    steps:
+    steps:        
       - name: 'Checkout Project'
         uses: actions/checkout@v2
+        with: 
+          fetch-depth: 0
+        
       - name: 'Setup .NET'
         uses: actions/setup-dotnet@v1
         with:
@@ -65,3 +68,9 @@ jobs:
         with:
           github-token:  ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: 'OmegaTests/lcov.info'
+          
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
