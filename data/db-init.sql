@@ -18,7 +18,8 @@ CREATE TABLE Products (
     CategoryId int null default null    
 );
 
-Insert Into Categories (CategoryId, Title) VALUES (1, "Test Category 1"), (2, "Test Category 2"), (3, "Test Category 3");
+Insert Into Categories (Title) VALUES ("Test Category 1"), ("Test Category 2"), ("Test Category 3");
+
 INSERT INTO Products (Title, Slug, Description, SKU, ProductCode, CategoryId) VALUES (
     "Test Product", "test-product", "This is a test product", "tst-prd", "48481939921", 1
 );
